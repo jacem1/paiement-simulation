@@ -10,6 +10,7 @@ document.getElementById('autoFillButton').addEventListener('click', function() {
 });
 
 // Payment processing with real response time measurement
+
 document.getElementById('paymentForm').addEventListener('submit', function(e) {
     e.preventDefault();
     
@@ -31,13 +32,13 @@ document.getElementById('paymentForm').addEventListener('submit', function(e) {
         responseTime: parseFloat(responseTime)
     };
 
-    // Store transaction and dispatch event
+    // Store transaction
     const transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
     transactions.push(transaction);
     localStorage.setItem('transactions', JSON.stringify(transactions));
     
-    // Dispatch custom event for real-time updates
-    window.dispatchEvent(new Event('transactionUpdated'));
+    // Update last modified timestamp
+    localStorage.setItem('lastModified', new Date().getTime());
 
     // Show message
     const messageDiv = document.getElementById('message');
@@ -48,6 +49,8 @@ document.getElementById('paymentForm').addEventListener('submit', function(e) {
         this.reset();
     }
 });
+
+// ... (rest of the code remains the same)
 // Basic validation for card inputs
 document.getElementById('cardNumber').addEventListener('input', function(e) {
     this.value = this.value.replace(/\D/g, '');
