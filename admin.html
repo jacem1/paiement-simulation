@@ -31,8 +31,17 @@
                     <input type="number" id="duration" min="1" value="5">
                 </div>
                 <div class="stats">
-                    <p>Success Rate: <span id="successRate">0</span>%</p>
-                    <p>Total Transactions: <span id="totalTransactions">0</span></p>
+                    <div class="stat-card">
+                        <h3>Performance Metrics</h3>
+                        <p>Success Rate: <span id="successRate">0</span>%</p>
+                        <p>Total Transactions: <span id="totalTransactions">0</span></p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Response Times</h3>
+                        <p>Average: <span id="avgResponseTime">0</span> ms</p>
+                        <p>Minimum: <span id="minResponseTime">0</span> ms</p>
+                        <p>Maximum: <span id="maxResponseTime">0</span> ms</p>
+                    </div>
                 </div>
             </div>
             <table id="transactionTable">
@@ -42,6 +51,7 @@
                         <th>Name</th>
                         <th>Email</th>
                         <th>Status</th>
+                        <th>Response Time (ms)</th>
                     </tr>
                 </thead>
                 <tbody id="transactionList"></tbody>
@@ -49,7 +59,6 @@
         </div>
     </div>
     <script>
-        // Define these constants before loading admin.js
         const ADMIN_USERNAME = 'admin';
         const ADMIN_PASSWORD = 'Admin@5588';
     </script>
