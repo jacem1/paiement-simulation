@@ -1,5 +1,5 @@
-// Global variable to store the update interval
 let updateInterval;
+let lastCheckedTimestamp = 0;
 
 document.getElementById('loginForm').addEventListener('submit', function(e) {
     e.preventDefault();
@@ -10,26 +10,34 @@ document.getElementById('loginForm').addEventListener('submit', function(e) {
     if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
         document.getElementById('loginSection').style.display = 'none';
         document.getElementById('dashboardSection').style.display = 'block';
-        loadTransactions();
-        startRealTimeUpdates();
+        startPolling();
     } else {
         alert('Invalid credentials!');
     }
 });
 
-function startRealTimeUpdates() {
+function startPolling() {
     // Initial load
     loadTransactions();
+    lastCheckedTimestamp = localStorage.getItem('lastModified') || 0;
     
     // Clear any existing interval
     if (updateInterval) {
         clearInterval(updateInterval);
     }
     
-    // Set up new interval for real-time updates (every 1 second)
+    // Set up polling interval (every 1 second)
     updateInterval = setInterval(() => {
-        loadTransactions();
+        checkForUpdates();
     }, 1000);
+}
+
+function checkForUpdates() {
+    const currentTimestamp = localStorage.getItem('lastModified') || 0;
+    if (currentTimestamp !== lastCheckedTimestamp) {
+        loadTransactions();
+        lastCheckedTimestamp = currentTimestamp;
+    }
 }
 
 function loadTransactions() {
@@ -70,13 +78,15 @@ function deleteTransaction(index) {
     const transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
     transactions.splice(index, 1);
     localStorage.setItem('transactions', JSON.stringify(transactions));
-    loadTransactions(); // Reload the transactions immediately
+    localStorage.setItem('lastModified', new Date().getTime()); // Update timestamp
+    loadTransactions();
 }
 
 function clearAllTransactions() {
     if (confirm('Are you sure you want to delete all transactions?')) {
         localStorage.setItem('transactions', '[]');
-        loadTransactions(); // Reload the transactions immediately
+        localStorage.setItem('lastModified', new Date().getTime()); // Update timestamp
+        loadTransactions();
     }
 }
 
