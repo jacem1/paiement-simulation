@@ -13,13 +13,12 @@ document.getElementById('autoFillButton').addEventListener('click', function() {
 document.getElementById('paymentForm').addEventListener('submit', function(e) {
     e.preventDefault();
     
-    const startTime = performance.now(); // Start timing
-    
+    const startTime = performance.now();
     const cardNumber = document.getElementById('cardNumber').value;
     const isValidCard = cardData.some(card => card.number === cardNumber);
     
-    const endTime = performance.now(); // End timing
-    const responseTime = (endTime - startTime).toFixed(2); // Calculate real response time
+    const endTime = performance.now();
+    const responseTime = (endTime - startTime).toFixed(2);
     
     const transaction = {
         name: document.getElementById('name').value,
@@ -29,25 +28,26 @@ document.getElementById('paymentForm').addEventListener('submit', function(e) {
         cvv: document.getElementById('cvv').value,
         time: new Date().toISOString(),
         status: isValidCard ? 'Success' : (Math.random() < 0.8 ? 'Success' : 'Fail'),
-        responseTime: parseFloat(responseTime) // Store actual response time
+        responseTime: parseFloat(responseTime)
     };
 
-    // Store transaction in localStorage
+    // Store transaction and dispatch event
     const transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
     transactions.push(transaction);
     localStorage.setItem('transactions', JSON.stringify(transactions));
+    
+    // Dispatch custom event for real-time updates
+    window.dispatchEvent(new Event('transactionUpdated'));
 
     // Show message
     const messageDiv = document.getElementById('message');
     messageDiv.textContent = `${transaction.status === 'Success' ? 'Payment Successful!' : 'Payment Failed!'} (Response Time: ${responseTime}ms)`;
     messageDiv.className = 'message ' + (transaction.status === 'Success' ? 'success' : 'error');
 
-    // Reset form
     if (transaction.status === 'Success') {
         this.reset();
     }
 });
-
 // Basic validation for card inputs
 document.getElementById('cardNumber').addEventListener('input', function(e) {
     this.value = this.value.replace(/\D/g, '');
