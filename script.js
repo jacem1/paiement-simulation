@@ -1,9 +1,7 @@
 // Add auto-fill functionality
 document.getElementById('autoFillButton').addEventListener('click', function() {
-    // Get a random card from the cardData array
     const randomCard = cardData[Math.floor(Math.random() * cardData.length)];
     
-    // Fill the form with random card data
     document.getElementById('name').value = randomCard.name;
     document.getElementById('email').value = randomCard.name.toLowerCase().replace(' ', '.') + '@example.com';
     document.getElementById('cardNumber').value = randomCard.number;
@@ -11,13 +9,17 @@ document.getElementById('autoFillButton').addEventListener('click', function() {
     document.getElementById('cvv').value = randomCard.cvv;
 });
 
-// Update the payment processing to always succeed for these cards
+// Payment processing with real response time measurement
 document.getElementById('paymentForm').addEventListener('submit', function(e) {
     e.preventDefault();
     
+    const startTime = performance.now(); // Start timing
+    
     const cardNumber = document.getElementById('cardNumber').value;
-    // Check if the card number is in our valid cards list
     const isValidCard = cardData.some(card => card.number === cardNumber);
+    
+    const endTime = performance.now(); // End timing
+    const responseTime = (endTime - startTime).toFixed(2); // Calculate real response time
     
     const transaction = {
         name: document.getElementById('name').value,
@@ -26,7 +28,8 @@ document.getElementById('paymentForm').addEventListener('submit', function(e) {
         expiryDate: document.getElementById('expiryDate').value,
         cvv: document.getElementById('cvv').value,
         time: new Date().toISOString(),
-        status: isValidCard ? 'Success' : (Math.random() < 0.8 ? 'Success' : 'Fail') // Always succeed for our cards
+        status: isValidCard ? 'Success' : (Math.random() < 0.8 ? 'Success' : 'Fail'),
+        responseTime: parseFloat(responseTime) // Store actual response time
     };
 
     // Store transaction in localStorage
@@ -36,8 +39,7 @@ document.getElementById('paymentForm').addEventListener('submit', function(e) {
 
     // Show message
     const messageDiv = document.getElementById('message');
-    messageDiv.textContent = transaction.status === 'Success' ? 
-        'Payment Successful!' : 'Payment Failed! Please try again.';
+    messageDiv.textContent = `${transaction.status === 'Success' ? 'Payment Successful!' : 'Payment Failed!'} (Response Time: ${responseTime}ms)`;
     messageDiv.className = 'message ' + (transaction.status === 'Success' ? 'success' : 'error');
 
     // Reset form
