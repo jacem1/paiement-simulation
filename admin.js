@@ -13,11 +13,31 @@ document.getElementById('loginForm').addEventListener('submit', function(e) {
     }
 });
 
-// ... existing login code remains the same ...
+// Function to handle real-time updates
+function setupRealTimeUpdates() {
+    // Listen for transaction updates
+    window.addEventListener('transactionUpdated', function() {
+        loadTransactions();
+    });
+
+    // Listen for storage changes from other tabs/windows
+    window.addEventListener('storage', function(e) {
+        if (e.key === 'transactions') {
+            loadTransactions();
+        }
+    });
+
+    // Update more frequently (every 2 seconds)
+    setInterval(() => {
+        loadTransactions();
+    }, 2000);
+}
 
 function loadTransactions() {
     const transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
     const transactionList = document.getElementById('transactionList');
+    const currentScrollPosition = transactionList.scrollTop; // Save scroll position
+
     transactionList.innerHTML = '';
 
     transactions.forEach((transaction, index) => {
@@ -35,6 +55,7 @@ function loadTransactions() {
         transactionList.appendChild(row);
     });
 
+    transactionList.scrollTop = currentScrollPosition; // Restore scroll position
     updateStats(transactions);
 }
 
@@ -42,21 +63,19 @@ function deleteTransaction(index) {
     const transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
     transactions.splice(index, 1);
     localStorage.setItem('transactions', JSON.stringify(transactions));
-    loadTransactions();
+    
+    // Dispatch event for real-time updates
+    window.dispatchEvent(new Event('transactionUpdated'));
 }
 
 function clearAllTransactions() {
     if (confirm('Are you sure you want to delete all transactions?')) {
         localStorage.setItem('transactions', '[]');
-        loadTransactions();
+        window.dispatchEvent(new Event('transactionUpdated'));
     }
 }
 
-function calculateStdDev(values, mean) {
-    if (values.length < 2) return 0;
-    const variance = values.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0) / (values.length - 1);
-    return Math.sqrt(variance);
-}
+
 
 function updateStats(transactions) {
     const duration = document.getElementById('duration').value;
@@ -111,15 +130,24 @@ function updateStats(transactions) {
 }
 
 // Event Listeners
+document.getElementById('loginForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+
+    if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+        document.getElementById('loginSection').style.display = 'none';
+        document.getElementById('dashboardSection').style.display = 'block';
+        loadTransactions();
+        setupRealTimeUpdates(); // Setup real-time updates after login
+    } else {
+        alert('Invalid credentials!');
+    }
+});
+
 document.getElementById('duration').addEventListener('change', function() {
-    const transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
-    updateStats(transactions);
+    loadTransactions();
 });
 
 document.getElementById('clearAllBtn').addEventListener('click', clearAllTransactions);
-
-// Auto-update every 30 seconds
-setInterval(() => {
-    const transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
-    updateStats(transactions);
-}, 30000);
