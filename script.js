@@ -1,14 +1,32 @@
+// Add auto-fill functionality
+document.getElementById('autoFillButton').addEventListener('click', function() {
+    // Get a random card from the cardData array
+    const randomCard = cardData[Math.floor(Math.random() * cardData.length)];
+    
+    // Fill the form with random card data
+    document.getElementById('name').value = randomCard.name;
+    document.getElementById('email').value = randomCard.name.toLowerCase().replace(' ', '.') + '@example.com';
+    document.getElementById('cardNumber').value = randomCard.number;
+    document.getElementById('expiryDate').value = randomCard.expiry;
+    document.getElementById('cvv').value = randomCard.cvv;
+});
+
+// Update the payment processing to always succeed for these cards
 document.getElementById('paymentForm').addEventListener('submit', function(e) {
     e.preventDefault();
+    
+    const cardNumber = document.getElementById('cardNumber').value;
+    // Check if the card number is in our valid cards list
+    const isValidCard = cardData.some(card => card.number === cardNumber);
     
     const transaction = {
         name: document.getElementById('name').value,
         email: document.getElementById('email').value,
-        cardNumber: document.getElementById('cardNumber').value,
+        cardNumber: cardNumber,
         expiryDate: document.getElementById('expiryDate').value,
         cvv: document.getElementById('cvv').value,
         time: new Date().toISOString(),
-        status: Math.random() < 0.8 ? 'Success' : 'Fail' // 80% success rate
+        status: isValidCard ? 'Success' : (Math.random() < 0.8 ? 'Success' : 'Fail') // Always succeed for our cards
     };
 
     // Store transaction in localStorage
