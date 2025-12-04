@@ -1,5 +1,4 @@
 let updateInterval;
-let lastCheckedTimestamp = 0;
 
 document.getElementById('loginForm').addEventListener('submit', function(e) {
     e.preventDefault();
@@ -19,67 +18,96 @@ document.getElementById('loginForm').addEventListener('submit', function(e) {
 function startPolling() {
     // Initial load
     loadTransactions();
-    lastCheckedTimestamp = localStorage.getItem('lastModified') || 0;
     
     // Clear any existing interval
     if (updateInterval) {
         clearInterval(updateInterval);
     }
     
-    // Set up polling interval (every 1 second)
+    // Set up polling interval (every 2 seconds)
     updateInterval = setInterval(() => {
-        checkForUpdates();
-    }, 1000);
+        loadTransactions();
+    }, 2000);
 }
 
-function checkForUpdates() {
-    const currentTimestamp = localStorage.getItem('lastModified') || 0;
-    if (currentTimestamp !== lastCheckedTimestamp) {
-        loadTransactions();
-        lastCheckedTimestamp = currentTimestamp;
+async function loadTransactions() {
+    try {
+        const response = await fetch('transactions.json?' + new Date().getTime()); // Add timestamp to prevent caching
+        const transactions = await response.json();
+        
+        const transactionList = document.getElementById('transactionList');
+        transactionList.innerHTML = '';
+
+        // Sort transactions by time, most recent first
+        transactions.sort((a, b) => new Date(b.time) - new Date(a.time));
+
+        transactions.forEach((transaction, index) => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${new Date(transaction.time).toLocaleString()}</td>
+                <td>${transaction.name}</td>
+                <td>${transaction.email}</td>
+                <td class="${transaction.status.toLowerCase()}-status">${transaction.status}</td>
+                <td>${transaction.responseTime?.toFixed(2) || 'N/A'}</td>
+                <td>
+                    <button class="delete-btn" data-index="${index}">Delete</button>
+                </td>
+            `;
+            transactionList.appendChild(row);
+        });
+
+        // Add event listeners for delete buttons
+        document.querySelectorAll('.delete-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const index = parseInt(this.getAttribute('data-index'));
+                deleteTransaction(index);
+            });
+        });
+
+        updateStats(transactions);
+    } catch (error) {
+        console.error('Error loading transactions:', error);
     }
 }
 
-function loadTransactions() {
-    const transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
-    const transactionList = document.getElementById('transactionList');
-    transactionList.innerHTML = '';
+async function deleteTransaction(index) {
+    try {
+        const response = await fetch('transactions.json');
+        const transactions = await response.json();
+        
+        transactions.splice(index, 1);
 
-    // Sort transactions by time, most recent first
-    transactions.sort((a, b) => new Date(b.time) - new Date(a.time));
-
-    transactions.forEach((transaction, index) => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${new Date(transaction.time).toLocaleString()}</td>
-            <td>${transaction.name}</td>
-            <td>${transaction.email}</td>
-            <td class="${transaction.status.toLowerCase()}-status">${transaction.status}</td>
-            <td>${transaction.responseTime?.toFixed(2) || 'N/A'}</td>
-            <td>
-                <button class="delete-btn" data-index="${index}">Delete</button>
-            </td>
-        `;
-        transactionList.appendChild(row);
-    });
-
-    // Add event listeners for delete buttons
-    document.querySelectorAll('.delete-btn').forEach(button => {
-        button.addEventListener('click', function() {
-            const index = parseInt(this.getAttribute('data-index'));
-            deleteTransaction(index);
+        await fetch('transactions.json', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(transactions)
         });
-    });
 
-    updateStats(transactions);
+        loadTransactions();
+    } catch (error) {
+        console.error('Error deleting transaction:', error);
+        alert('Error deleting transaction. Please try again.');
+    }
 }
 
-function deleteTransaction(index) {
-    const transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
-    transactions.splice(index, 1);
-    localStorage.setItem('transactions', JSON.stringify(transactions));
-    localStorage.setItem('lastModified', new Date().getTime()); // Update timestamp
-    loadTransactions();
+async function clearAllTransactions() {
+    if (confirm('Are you sure you want to delete all transactions?')) {
+        try {
+            await fetch('transactions.json', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: '[]'
+            });
+            loadTransactions();
+        } catch (error) {
+            console.error('Error clearing transactions:', error);
+            alert('Error clearing transactions. Please try again.');
+        }
+    }
 }
 
 function clearAllTransactions() {
