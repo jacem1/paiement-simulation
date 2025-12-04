@@ -1,3 +1,6 @@
+// Global variable to store the update interval
+let updateInterval;
+
 document.getElementById('loginForm').addEventListener('submit', function(e) {
     e.preventDefault();
     
@@ -8,37 +11,34 @@ document.getElementById('loginForm').addEventListener('submit', function(e) {
         document.getElementById('loginSection').style.display = 'none';
         document.getElementById('dashboardSection').style.display = 'block';
         loadTransactions();
+        startRealTimeUpdates();
     } else {
         alert('Invalid credentials!');
     }
 });
 
-// Function to handle real-time updates
-function setupRealTimeUpdates() {
-    // Listen for transaction updates
-    window.addEventListener('transactionUpdated', function() {
+function startRealTimeUpdates() {
+    // Initial load
+    loadTransactions();
+    
+    // Clear any existing interval
+    if (updateInterval) {
+        clearInterval(updateInterval);
+    }
+    
+    // Set up new interval for real-time updates (every 1 second)
+    updateInterval = setInterval(() => {
         loadTransactions();
-    });
-
-    // Listen for storage changes from other tabs/windows
-    window.addEventListener('storage', function(e) {
-        if (e.key === 'transactions') {
-            loadTransactions();
-        }
-    });
-
-    // Update more frequently (every 2 seconds)
-    setInterval(() => {
-        loadTransactions();
-    }, 2000);
+    }, 1000);
 }
 
 function loadTransactions() {
     const transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
     const transactionList = document.getElementById('transactionList');
-    const currentScrollPosition = transactionList.scrollTop; // Save scroll position
-
     transactionList.innerHTML = '';
+
+    // Sort transactions by time, most recent first
+    transactions.sort((a, b) => new Date(b.time) - new Date(a.time));
 
     transactions.forEach((transaction, index) => {
         const row = document.createElement('tr');
@@ -49,13 +49,20 @@ function loadTransactions() {
             <td class="${transaction.status.toLowerCase()}-status">${transaction.status}</td>
             <td>${transaction.responseTime?.toFixed(2) || 'N/A'}</td>
             <td>
-                <button class="delete-btn" onclick="deleteTransaction(${index})">Delete</button>
+                <button class="delete-btn" data-index="${index}">Delete</button>
             </td>
         `;
         transactionList.appendChild(row);
     });
 
-    transactionList.scrollTop = currentScrollPosition; // Restore scroll position
+    // Add event listeners for delete buttons
+    document.querySelectorAll('.delete-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const index = parseInt(this.getAttribute('data-index'));
+            deleteTransaction(index);
+        });
+    });
+
     updateStats(transactions);
 }
 
@@ -63,19 +70,15 @@ function deleteTransaction(index) {
     const transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
     transactions.splice(index, 1);
     localStorage.setItem('transactions', JSON.stringify(transactions));
-    
-    // Dispatch event for real-time updates
-    window.dispatchEvent(new Event('transactionUpdated'));
+    loadTransactions(); // Reload the transactions immediately
 }
 
 function clearAllTransactions() {
     if (confirm('Are you sure you want to delete all transactions?')) {
         localStorage.setItem('transactions', '[]');
-        window.dispatchEvent(new Event('transactionUpdated'));
+        loadTransactions(); // Reload the transactions immediately
     }
 }
-
-
 
 function updateStats(transactions) {
     const duration = document.getElementById('duration').value;
@@ -100,16 +103,18 @@ function updateStats(transactions) {
         ? (responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length)
         : 0;
 
-    // Calculate additional metrics
+    // Calculate standard deviation
     const stdDev = calculateStdDev(responseTimes, avgResponseTime);
+    
     const avgSuccessRT = successResponseTimes.length > 0
         ? (successResponseTimes.reduce((a, b) => a + b, 0) / successResponseTimes.length)
         : 0;
+    
     const avgFailureRT = failureResponseTimes.length > 0
         ? (failureResponseTimes.reduce((a, b) => a + b, 0) / failureResponseTimes.length)
         : 0;
     
-    const transactionsPerMinute = recentTransactions.length / duration;
+    const transactionsPerMinute = (recentTransactions.length / duration).toFixed(2);
     const lastTransaction = recentTransactions.length > 0 
         ? new Date(Math.max(...recentTransactions.map(t => new Date(t.time))))
         : null;
@@ -123,31 +128,28 @@ function updateStats(transactions) {
     document.getElementById('minResponseTime').textContent = responseTimes.length ? Math.min(...responseTimes).toFixed(2) : '0';
     document.getElementById('maxResponseTime').textContent = responseTimes.length ? Math.max(...responseTimes).toFixed(2) : '0';
     document.getElementById('stdDevResponseTime').textContent = stdDev.toFixed(2);
-    document.getElementById('transactionsPerMinute').textContent = transactionsPerMinute.toFixed(2);
+    document.getElementById('transactionsPerMinute').textContent = transactionsPerMinute;
     document.getElementById('lastTransactionTime').textContent = lastTransaction ? lastTransaction.toLocaleString() : '-';
     document.getElementById('avgSuccessResponseTime').textContent = avgSuccessRT.toFixed(2);
     document.getElementById('avgFailureResponseTime').textContent = avgFailureRT.toFixed(2);
 }
 
-// Event Listeners
-document.getElementById('loginForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    const username = document.getElementById('username').value;
-    const password = document.getElementById('password').value;
+function calculateStdDev(values, mean) {
+    if (values.length < 2) return 0;
+    const variance = values.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0) / (values.length - 1);
+    return Math.sqrt(variance);
+}
 
-    if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-        document.getElementById('loginSection').style.display = 'none';
-        document.getElementById('dashboardSection').style.display = 'block';
-        loadTransactions();
-        setupRealTimeUpdates(); // Setup real-time updates after login
-    } else {
-        alert('Invalid credentials!');
-    }
-});
-
+// Event listeners
 document.getElementById('duration').addEventListener('change', function() {
     loadTransactions();
 });
 
 document.getElementById('clearAllBtn').addEventListener('click', clearAllTransactions);
+
+// Clean up interval when leaving the page
+window.addEventListener('beforeunload', function() {
+    if (updateInterval) {
+        clearInterval(updateInterval);
+    }
+});
