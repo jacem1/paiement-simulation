@@ -11,7 +11,7 @@ document.getElementById('autoFillButton').addEventListener('click', function() {
 
 // Payment processing with real response time measurement
 
-document.getElementById('paymentForm').addEventListener('submit', function(e) {
+document.getElementById('paymentForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     
     const startTime = performance.now();
@@ -32,21 +32,34 @@ document.getElementById('paymentForm').addEventListener('submit', function(e) {
         responseTime: parseFloat(responseTime)
     };
 
-    // Store transaction
-    const transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
-    transactions.push(transaction);
-    localStorage.setItem('transactions', JSON.stringify(transactions));
-    
-    // Update last modified timestamp
-    localStorage.setItem('lastModified', new Date().getTime());
+    try {
+        // Get current transactions
+        const response = await fetch('transactions.json');
+        const transactions = await response.json();
+        
+        // Add new transaction
+        transactions.push(transaction);
 
-    // Show message
-    const messageDiv = document.getElementById('message');
-    messageDiv.textContent = `${transaction.status === 'Success' ? 'Payment Successful!' : 'Payment Failed!'} (Response Time: ${responseTime}ms)`;
-    messageDiv.className = 'message ' + (transaction.status === 'Success' ? 'success' : 'error');
+        // Save updated transactions
+        await fetch('transactions.json', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(transactions)
+        });
 
-    if (transaction.status === 'Success') {
-        this.reset();
+        // Show success message
+        const messageDiv = document.getElementById('message');
+        messageDiv.textContent = `${transaction.status === 'Success' ? 'Payment Successful!' : 'Payment Failed!'} (Response Time: ${responseTime}ms)`;
+        messageDiv.className = 'message ' + (transaction.status === 'Success' ? 'success' : 'error');
+
+        if (transaction.status === 'Success') {
+            this.reset();
+        }
+    } catch (error) {
+        console.error('Error saving transaction:', error);
+        alert('Error processing transaction. Please try again.');
     }
 });
 
