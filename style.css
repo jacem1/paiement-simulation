@@ -168,3 +168,22 @@ th:last-child {
 .fail-status {
     color: #dc3545;
 }
+
+/* Add to your existing style.css */
+@keyframes highlight {
+    0% { background-color: #fff; }
+    50% { background-color: #f0f8ff; }
+    100% { background-color: #fff; }
+}
+
+#transactionTable tbody tr:first-child {
+    animation: highlight 1s ease;
+}
+
+.stat-card {
+    transition: background-color 0.3s ease;
+}
+
+.stat-card span {
+    transition: color 0.3s ease;
+}
