@@ -24,15 +24,14 @@ function startPolling() {
         clearInterval(updateInterval);
     }
     
-    // Set up polling interval (every 2 seconds)
-    updateInterval = setInterval(() => {
-        loadTransactions();
-    }, 2000);
+    // Poll every 1 second
+    updateInterval = setInterval(loadTransactions, 1000);
 }
 
 async function loadTransactions() {
     try {
-        const response = await fetch('transactions.json?' + new Date().getTime()); // Add timestamp to prevent caching
+        // Add timestamp to prevent caching
+        const response = await fetch(`/transactions.json?t=${new Date().getTime()}`);
         const transactions = await response.json();
         
         const transactionList = document.getElementById('transactionList');
@@ -72,12 +71,12 @@ async function loadTransactions() {
 
 async function deleteTransaction(index) {
     try {
-        const response = await fetch('transactions.json');
+        const response = await fetch('/transactions.json');
         const transactions = await response.json();
         
         transactions.splice(index, 1);
 
-        await fetch('transactions.json', {
+        await fetch('/transactions.json', {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -95,26 +94,18 @@ async function deleteTransaction(index) {
 async function clearAllTransactions() {
     if (confirm('Are you sure you want to delete all transactions?')) {
         try {
-            await fetch('transactions.json', {
+            await fetch('/transactions.json', {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: '[]'
+                body: JSON.stringify([])
             });
             loadTransactions();
         } catch (error) {
             console.error('Error clearing transactions:', error);
             alert('Error clearing transactions. Please try again.');
         }
-    }
-}
-
-function clearAllTransactions() {
-    if (confirm('Are you sure you want to delete all transactions?')) {
-        localStorage.setItem('transactions', '[]');
-        localStorage.setItem('lastModified', new Date().getTime()); // Update timestamp
-        loadTransactions();
     }
 }
 
@@ -179,10 +170,7 @@ function calculateStdDev(values, mean) {
 }
 
 // Event listeners
-document.getElementById('duration').addEventListener('change', function() {
-    loadTransactions();
-});
-
+document.getElementById('duration').addEventListener('change', loadTransactions);
 document.getElementById('clearAllBtn').addEventListener('click', clearAllTransactions);
 
 // Clean up interval when leaving the page
