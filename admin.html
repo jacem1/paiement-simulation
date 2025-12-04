@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div id="loginSection">
+            <h2>Admin Login</h2>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="username">Username:</label>
+                    <input type="text" id="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" required>
+                </div>
+                <button type="submit">Login</button>
+            </form>
+        </div>
+
+        <div id="dashboardSection" style="display: none;">
+            <h2>Transaction Dashboard</h2>
+            <div class="stats-container">
+                <div class="form-group">
+                    <label for="duration">Time Duration (minutes):</label>
+                    <input type="number" id="duration" min="1" value="5">
+                </div>
+                <div class="stats">
+                    <p>Success Rate: <span id="successRate">0</span>%</p>
+                    <p>Total Transactions: <span id="totalTransactions">0</span></p>
+                </div>
+            </div>
+            <table id="transactionTable">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="transactionList"></tbody>
+            </table>
+        </div>
+    </div>
+    <script src="admin.js"></script>
+</body>
+</html>
