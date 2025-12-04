@@ -1,67 +1,79 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-    <div class="container">
-        <div id="loginSection">
-            <h2>Admin Login</h2>
-            <form id="loginForm">
-                <div class="form-group">
-                    <label for="username">Username:</label>
-                    <input type="text" id="username" required>
-                </div>
-                <div class="form-group">
-                    <label for="password">Password:</label>
-                    <input type="password" id="password" required>
-                </div>
-                <button type="submit">Login</button>
-            </form>
-        </div>
+document.getElementById('loginForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
 
-        <div id="dashboardSection" style="display: none;">
-            <h2>Transaction Dashboard</h2>
-            <div class="stats-container">
-                <div class="form-group">
-                    <label for="duration">Time Duration (minutes):</label>
-                    <input type="number" id="duration" min="1" value="5">
-                </div>
-                <div class="stats">
-                    <div class="stat-card">
-                        <h3>Performance Metrics</h3>
-                        <p>Success Rate: <span id="successRate">0</span>%</p>
-                        <p>Total Transactions: <span id="totalTransactions">0</span></p>
-                    </div>
-                    <div class="stat-card">
-                        <h3>Response Times</h3>
-                        <p>Average: <span id="avgResponseTime">0</span> ms</p>
-                        <p>Minimum: <span id="minResponseTime">0</span> ms</p>
-                        <p>Maximum: <span id="maxResponseTime">0</span> ms</p>
-                    </div>
-                </div>
-            </div>
-            <table id="transactionTable">
-                <thead>
-                    <tr>
-                        <th>Time</th>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Status</th>
-                        <th>Response Time (ms)</th>
-                    </tr>
-                </thead>
-                <tbody id="transactionList"></tbody>
-            </table>
-        </div>
-    </div>
-    <script>
-        const ADMIN_USERNAME = 'admin';
-        const ADMIN_PASSWORD = 'Admin@5588';
-    </script>
-    <script src="admin.js"></script>
-</body>
-</html>
+    if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+        document.getElementById('loginSection').style.display = 'none';
+        document.getElementById('dashboardSection').style.display = 'block';
+        loadTransactions();
+    } else {
+        alert('Invalid credentials!');
+    }
+});
+
+function loadTransactions() {
+    const transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
+    const transactionList = document.getElementById('transactionList');
+    transactionList.innerHTML = '';
+
+    transactions.forEach(transaction => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${new Date(transaction.time).toLocaleString()}</td>
+            <td>${transaction.name}</td>
+            <td>${transaction.email}</td>
+            <td class="${transaction.status.toLowerCase()}-status">${transaction.status}</td>
+            <td>${transaction.responseTime?.toFixed(2) || 'N/A'}</td>
+        `;
+        transactionList.appendChild(row);
+    });
+
+    updateStats(transactions);
+}
+
+function updateStats(transactions) {
+    const duration = document.getElementById('duration').value;
+    const currentTime = new Date();
+    const cutoffTime = new Date(currentTime - duration * 60000);
+
+    const recentTransactions = transactions.filter(t => new Date(t.time) > cutoffTime);
+    const successfulTransactions = recentTransactions.filter(t => t.status === 'Success');
+    
+    // Calculate success rate
+    const successRate = recentTransactions.length > 0 
+        ? (successfulTransactions.length / recentTransactions.length * 100).toFixed(2)
+        : 0;
+
+    // Calculate response time statistics
+    const responseTimes = recentTransactions.map(t => t.responseTime).filter(t => t != null);
+    const avgResponseTime = responseTimes.length > 0
+        ? (responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length).toFixed(2)
+        : 0;
+    const minResponseTime = responseTimes.length > 0
+        ? Math.min(...responseTimes).toFixed(2)
+        : 0;
+    const maxResponseTime = responseTimes.length > 0
+        ? Math.max(...responseTimes).toFixed(2)
+        : 0;
+
+    // Update display
+    document.getElementById('successRate').textContent = successRate;
+    document.getElementById('totalTransactions').textContent = recentTransactions.length;
+    document.getElementById('avgResponseTime').textContent = avgResponseTime;
+    document.getElementById('minResponseTime').textContent = minResponseTime;
+    document.getElementById('maxResponseTime').textContent = maxResponseTime;
+}
+
+// Update stats when duration changes
+document.getElementById('duration').addEventListener('change', function() {
+    const transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
+    updateStats(transactions);
+});
+
+// Update stats every 30 seconds
+setInterval(() => {
+    const transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
+    updateStats(transactions);
+}, 30000);
