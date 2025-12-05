@@ -28,43 +28,79 @@ function startPolling() {
     updateInterval = setInterval(loadTransactions, 1000);
 }
 
+let updateInterval;
+let lastTransactionCount = 0; // Track number of transactions
+
+document.getElementById('loginForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+
+    if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+        document.getElementById('loginSection').style.display = 'none';
+        document.getElementById('dashboardSection').style.display = 'block';
+        startPolling();
+    } else {
+        alert('Invalid credentials!');
+    }
+});
+
+function startPolling() {
+    // Initial load
+    loadTransactions();
+    
+    // Clear any existing interval
+    if (updateInterval) {
+        clearInterval(updateInterval);
+    }
+    
+    // Poll every 3 seconds instead of 1
+    updateInterval = setInterval(loadTransactions, 3000);
+}
+
 async function loadTransactions() {
     try {
         const response = await fetch(`/transactions.json?t=${new Date().getTime()}`);
         const transactions = await response.json();
-        
-        const transactionList = document.getElementById('transactionList');
-        transactionList.innerHTML = '';
 
-        // Sort transactions by time, most recent first
-        transactions.sort((a, b) => new Date(b.time) - new Date(a.time));
+        // Only update if there are changes
+        if (transactions.length !== lastTransactionCount) {
+            lastTransactionCount = transactions.length;
+            
+            const transactionList = document.getElementById('transactionList');
+            transactionList.innerHTML = '';
 
-        transactions.forEach((transaction, index) => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${new Date(transaction.time).toLocaleString()}</td>
-                <td>${transaction.name}</td>
-                <td>${transaction.email}</td>
-                <td class="${transaction.status.toLowerCase()}-status">${transaction.status}</td>
-                <td>${transaction.responseTime.toFixed(2)} ms</td>
-                <td>${formatBytes(transaction.dataSize)}</td>
-                <td>${formatThroughput(transaction.throughput)}</td>
-                <td>
-                    <button class="delete-btn" data-index="${index}">Delete</button>
-                </td>
-            `;
-            transactionList.appendChild(row);
-        });
+            // Sort transactions by time, most recent first
+            transactions.sort((a, b) => new Date(b.time) - new Date(a.time));
 
-        // Add delete button handlers
-        document.querySelectorAll('.delete-btn').forEach(button => {
-            button.addEventListener('click', function() {
-                const index = parseInt(this.getAttribute('data-index'));
-                deleteTransaction(index);
+            transactions.forEach((transaction, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${new Date(transaction.time).toLocaleString()}</td>
+                    <td>${transaction.name}</td>
+                    <td>${transaction.email}</td>
+                    <td class="${transaction.status.toLowerCase()}-status">${transaction.status}</td>
+                    <td>${transaction.responseTime?.toFixed(2) || '0'} ms</td>
+                    <td>${formatBytes(transaction.dataSize || 0)}</td>
+                    <td>${formatThroughput(transaction.throughput || 0)}</td>
+                    <td>
+                        <button class="delete-btn" data-index="${index}">Delete</button>
+                    </td>
+                `;
+                transactionList.appendChild(row);
             });
-        });
 
-        updateStats(transactions);
+            // Add delete button handlers
+            document.querySelectorAll('.delete-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const index = parseInt(this.getAttribute('data-index'));
+                    deleteTransaction(index);
+                });
+            });
+
+            updateStats(transactions);
+        }
     } catch (error) {
         console.error('Error loading transactions:', error);
     }
