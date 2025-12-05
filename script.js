@@ -123,3 +123,56 @@ document.getElementById('cvv').addEventListener('input', function(e) {
 document.getElementById('expiryDate').addEventListener('input', function(e) {
     this.value = this.value.replace(/\D/g, '').replace(/(\d{2})(\d)/, '$1/$2').slice(0, 5);
 });
+
+
+
+// Add batch transaction functionality
+document.getElementById('batchTransactionButton').addEventListener('click', async function() {
+    const totalTransactions = 100;
+    const messageDiv = document.getElementById('message');
+    
+    // Disable the button during processing
+    this.disabled = true;
+    this.textContent = 'Processing...';
+
+    try {
+        for (let i = 0; i < totalTransactions; i++) {
+            // Get a random card
+            const randomCard = cardData[Math.floor(Math.random() * cardData.length)];
+            
+            // Fill the form with random card data
+            document.getElementById('name').value = randomCard.name;
+            document.getElementById('email').value = randomCard.name.toLowerCase().replace(' ', '.') + '@example.com';
+            document.getElementById('cardNumber').value = randomCard.number;
+            document.getElementById('expiryDate').value = randomCard.expiry;
+            document.getElementById('cvv').value = randomCard.cvv;
+
+            // Update progress
+            messageDiv.textContent = `Processing transaction ${i + 1}/${totalTransactions}...`;
+            messageDiv.className = 'message info';
+
+            // Submit the form programmatically
+            const submitEvent = new Event('submit', { cancelable: true });
+            await document.getElementById('paymentForm').dispatchEvent(submitEvent);
+
+            // Small delay between transactions to avoid overwhelming the server
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        // Show completion message
+        messageDiv.textContent = `Completed ${totalTransactions} transactions!`;
+        messageDiv.className = 'message success';
+
+    } catch (error) {
+        console.error('Error in batch processing:', error);
+        messageDiv.textContent = 'Error during batch processing. Please try again.';
+        messageDiv.className = 'message error';
+    } finally {
+        // Re-enable the button
+        this.disabled = false;
+        this.textContent = 'Launch 100 Transactions';
+    }
+});
+
+
+
