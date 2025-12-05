@@ -108,6 +108,9 @@ async function loadTransactions() {
 
 async function deleteTransaction(index) {
     try {
+        // Temporarily stop polling while deleting
+        clearInterval(updateInterval);
+
         const response = await fetch('/transactions.json');
         const transactions = await response.json();
         
@@ -121,16 +124,29 @@ async function deleteTransaction(index) {
             body: JSON.stringify(transactions)
         });
 
-        loadTransactions();
+        // Update the last transaction count
+        lastTransactionCount = transactions.length;
+        
+        // Load transactions immediately
+        await loadTransactions();
+        
+        // Restart polling
+        updateInterval = setInterval(loadTransactions, 3000);
+
     } catch (error) {
         console.error('Error deleting transaction:', error);
         alert('Error deleting transaction. Please try again.');
+        // Restart polling even if there's an error
+        updateInterval = setInterval(loadTransactions, 3000);
     }
 }
 
 async function clearAllTransactions() {
     if (confirm('Are you sure you want to delete all transactions?')) {
         try {
+            // Temporarily stop polling while clearing
+            clearInterval(updateInterval);
+
             await fetch('/transactions.json', {
                 method: 'PUT',
                 headers: {
@@ -138,10 +154,21 @@ async function clearAllTransactions() {
                 },
                 body: JSON.stringify([])
             });
-            loadTransactions();
+
+            // Update the last transaction count
+            lastTransactionCount = 0;
+            
+            // Load transactions immediately
+            await loadTransactions();
+            
+            // Restart polling
+            updateInterval = setInterval(loadTransactions, 3000);
+
         } catch (error) {
             console.error('Error clearing transactions:', error);
             alert('Error clearing transactions. Please try again.');
+            // Restart polling even if there's an error
+            updateInterval = setInterval(loadTransactions, 3000);
         }
     }
 }
