@@ -1,7 +1,5 @@
-runtime: nodejs18  # or nodejs16 depending on your Node version
-
+runtime: nodejs18
 env: standard
-
 instance_class: F1  # Free tier
 
 automatic_scaling:
