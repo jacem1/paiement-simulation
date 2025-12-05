@@ -96,7 +96,6 @@ document.getElementById('paymentForm').addEventListener('submit', async function
     }
 });
 
-
 // Utility functions for formatting
 function formatBytes(bytes) {
     if (bytes < 1024) return bytes + " B";
@@ -110,7 +109,6 @@ function formatThroughput(bps) {
     else return (bps / 1000000).toFixed(2) + " Mbps";
 }
 
-// ... (rest of the code remains the same)
 // Basic validation for card inputs
 document.getElementById('cardNumber').addEventListener('input', function(e) {
     this.value = this.value.replace(/\D/g, '');
@@ -123,8 +121,6 @@ document.getElementById('cvv').addEventListener('input', function(e) {
 document.getElementById('expiryDate').addEventListener('input', function(e) {
     this.value = this.value.replace(/\D/g, '').replace(/(\d{2})(\d)/, '$1/$2').slice(0, 5);
 });
-
-
 
 // Add batch transaction functionality
 document.getElementById('batchTransactionButton').addEventListener('click', async function() {
@@ -173,6 +169,3 @@ document.getElementById('batchTransactionButton').addEventListener('click', asyn
         this.textContent = 'Launch 100 Transactions';
     }
 });
-
-
-
