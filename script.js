@@ -155,8 +155,8 @@ document.getElementById('batchTransactionButton').addEventListener('click', asyn
                 await document.getElementById('paymentForm').dispatchEvent(submitEvent);
                 successfulTransactions++;
 
-                // Increased delay between transactions to 0.5 second
-                await new Promise(resolve => setTimeout(resolve, 500));
+                // Increased delay between transactions to 1 second
+                await new Promise(resolve => setTimeout(resolve, 1000));
             } catch (transactionError) {
                 console.error(`Error in transaction ${i + 1}:`, transactionError);
                 failedTransactions++;
