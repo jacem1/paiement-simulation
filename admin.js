@@ -42,22 +42,24 @@ async function loadTransactions() {
         // Sort transactions by time, most recent first
         transactions.sort((a, b) => new Date(b.time) - new Date(a.time));
 
-        transactions.forEach((transaction, index) => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${new Date(transaction.time).toLocaleString()}</td>
-                <td>${transaction.name}</td>
-                <td>${transaction.email}</td>
-                <td class="${transaction.status.toLowerCase()}-status">${transaction.status}</td>
-                <td>${transaction.responseTime?.toFixed(2) || '0'} ms</td>
-                <td>${formatBytes(transaction.dataSize || 0)}</td>
-                <td>${formatThroughput(transaction.throughput || 0)}</td>
-                <td>
-                    <button class="delete-btn" data-index="${index}">Delete</button>
-                </td>
-            `;
-            transactionList.appendChild(row);
-        });
+transactions.forEach((transaction, index) => {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+        <td>${new Date(transaction.time).toLocaleString()}</td>
+        <td>${transaction.name}</td>
+        <td>${transaction.email}</td>
+        <td class="${transaction.status.toLowerCase()}-status">${transaction.status}</td>
+        <td>${transaction.responseTime?.toFixed(2) || '0'} ms</td>
+        <td>${transaction.serverProcessingTime || '0'} ms</td>
+        <td>${transaction.networkTime?.toFixed(2) || '0'} ms</td>
+        <td>${formatBytes(transaction.dataSize || 0)}</td>
+        <td>${formatThroughput(transaction.throughput || 0)}</td>
+        <td>
+            <button class="delete-btn" data-index="${index}">Delete</button>
+        </td>
+    `;
+    transactionList.appendChild(row);
+});
 
         // Add delete button handlers
         document.querySelectorAll('.delete-btn').forEach(button => {
