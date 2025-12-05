@@ -2,6 +2,67 @@
 let updateInterval;
 let lastTransactionCount = 0;
 
+// Add this at the beginning of your file, after the global variables
+document.addEventListener('DOMContentLoaded', function() {
+    // Export to TXT
+    document.getElementById('exportTxtBtn')?.addEventListener('click', async function() {
+        try {
+            const response = await fetch('/transactions.json');
+            const transactions = await response.json();
+            const data = formatTransactionsForExport(transactions);
+            
+            const blob = new Blob([data], { type: 'text/plain' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `transactions_${new Date().toISOString().slice(0,10)}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        } catch (error) {
+            console.error('Error exporting data:', error);
+            alert('Error exporting data');
+        }
+    });
+
+    // Copy to Clipboard
+    document.getElementById('copyClipboardBtn')?.addEventListener('click', async function() {
+        try {
+            const response = await fetch('/transactions.json');
+            const transactions = await response.json();
+            const data = formatTransactionsForExport(transactions);
+            
+            await navigator.clipboard.writeText(data);
+            alert('Data copied to clipboard!');
+        } catch (err) {
+            console.error('Failed to copy:', err);
+            alert('Failed to copy to clipboard');
+        }
+    });
+});
+
+// Add this function to format the transactions
+function formatTransactionsForExport(transactions) {
+    let output = 'Time\tName\tEmail\tStatus\tResponse Time\tServer Time\tNetwork Time\tData Size\tThroughput\n';
+    
+    transactions.forEach(t => {
+        output += `${new Date(t.time).toLocaleString()}\t`;
+        output += `${t.name}\t`;
+        output += `${t.email}\t`;
+        output += `${t.status}\t`;
+        output += `${t.responseTime?.toFixed(2) || '0'} ms\t`;
+        output += `${t.serverProcessingTime || '0'} ms\t`;
+        output += `${t.networkTime?.toFixed(2) || '0'} ms\t`;
+        output += `${formatBytes(t.dataSize || 0)}\t`;
+        output += `${formatThroughput(t.throughput || 0)}\n`;
+    });
+    
+    return output;
+}
+
+
+
 // Login handler
 document.getElementById('loginForm').addEventListener('submit', function(e) {
     e.preventDefault();
@@ -19,51 +80,7 @@ document.getElementById('loginForm').addEventListener('submit', function(e) {
 });
 
 
-// Function to format table data
-function getTableDataForExport() {
-    const transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
-    let output = 'Time\tName\tEmail\tStatus\tResponse Time\tServer Time\tNetwork Time\tData Size\tThroughput\n';
-    
-    transactions.forEach(t => {
-        output += `${new Date(t.time).toLocaleString()}\t`;
-        output += `${t.name}\t`;
-        output += `${t.email}\t`;
-        output += `${t.status}\t`;
-        output += `${t.responseTime.toFixed(2)} ms\t`;
-        output += `${t.serverProcessingTime} ms\t`;
-        output += `${t.networkTime.toFixed(2)} ms\t`;
-        output += `${formatBytes(t.dataSize)}\t`;
-        output += `${formatThroughput(t.throughput)}\n`;
-    });
-    
-    return output;
-}
 
-// Export to TXT
-document.getElementById('exportTxtBtn').addEventListener('click', function() {
-    const data = getTableDataForExport();
-    const blob = new Blob([data], { type: 'text/plain' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `transactions_${new Date().toISOString().slice(0,10)}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
-});
-
-// Copy to Clipboard
-document.getElementById('copyClipboardBtn').addEventListener('click', async function() {
-    const data = getTableDataForExport();
-    try {
-        await navigator.clipboard.writeText(data);
-        alert('Data copied to clipboard!');
-    } catch (err) {
-        console.error('Failed to copy: ', err);
-        alert('Failed to copy to clipboard');
-    }
-});
 
 
 
