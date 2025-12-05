@@ -30,7 +30,6 @@ function startPolling() {
 
 async function loadTransactions() {
     try {
-        // Add timestamp to prevent caching
         const response = await fetch(`/transactions.json?t=${new Date().getTime()}`);
         const transactions = await response.json();
         
@@ -47,7 +46,9 @@ async function loadTransactions() {
                 <td>${transaction.name}</td>
                 <td>${transaction.email}</td>
                 <td class="${transaction.status.toLowerCase()}-status">${transaction.status}</td>
-                <td>${transaction.responseTime?.toFixed(2) || 'N/A'}</td>
+                <td>${transaction.responseTime.toFixed(2)} ms</td>
+                <td>${formatBytes(transaction.dataSize)}</td>
+                <td>${formatThroughput(transaction.throughput)}</td>
                 <td>
                     <button class="delete-btn" data-index="${index}">Delete</button>
                 </td>
@@ -55,7 +56,7 @@ async function loadTransactions() {
             transactionList.appendChild(row);
         });
 
-        // Add event listeners for delete buttons
+        // Add delete button handlers
         document.querySelectorAll('.delete-btn').forEach(button => {
             button.addEventListener('click', function() {
                 const index = parseInt(this.getAttribute('data-index'));
@@ -161,6 +162,35 @@ function updateStats(transactions) {
     document.getElementById('lastTransactionTime').textContent = lastTransaction ? lastTransaction.toLocaleString() : '-';
     document.getElementById('avgSuccessResponseTime').textContent = avgSuccessRT.toFixed(2);
     document.getElementById('avgFailureResponseTime').textContent = avgFailureRT.toFixed(2);
+  // Add average throughput calculation
+    const throughputs = recentTransactions.map(t => t.throughput).filter(t => t != null);
+    const avgThroughput = throughputs.length > 0
+        ? throughputs.reduce((a, b) => a + b, 0) / throughputs.length
+        : 0;
+
+    // Add average data size calculation
+    const dataSizes = recentTransactions.map(t => t.dataSize).filter(t => t != null);
+    const avgDataSize = dataSizes.length > 0
+        ? dataSizes.reduce((a, b) => a + b, 0) / dataSizes.length
+        : 0;
+
+    // Update additional metrics in the display
+    // ... (previous updates remain the same)
+    document.getElementById('avgThroughput').textContent = formatThroughput(avgThroughput);
+    document.getElementById('avgDataSize').textContent = formatBytes(avgDataSize);
+}
+
+// Utility functions for formatting
+function formatBytes(bytes) {
+    if (bytes < 1024) return bytes.toFixed(2) + " B";
+    else if (bytes < 1048576) return (bytes / 1024).toFixed(2) + " KB";
+    else return (bytes / 1048576).toFixed(2) + " MB";
+}
+
+function formatThroughput(bps) {
+    if (bps < 1000) return bps.toFixed(2) + " bps";
+    else if (bps < 1000000) return (bps / 1000).toFixed(2) + " Kbps";
+    else return (bps / 1000000).toFixed(2) + " Mbps";
 }
 
 function calculateStdDev(values, mean) {
