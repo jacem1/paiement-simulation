@@ -213,3 +213,22 @@ th:last-child {
 .stat-card span {
     transition: color 0.3s ease;
 }
+
+
+.export-buttons {
+    margin: 20px 0;
+}
+
+.export-btn {
+    background-color: #28a745;
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: 10px;
+}
+
+.export-btn:hover {
+    background-color: #218838;
+}
