@@ -7,12 +7,23 @@ const port = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.static('.'));
 
-// Add no-cache middleware for transactions.json
-app.use('/transactions.json', (req, res, next) => {
-    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-    res.set('Expires', '-1');
-    res.set('Pragma', 'no-cache');
-    next();
+// Simulate payment processing endpoint
+app.post('/simulate-payment', (req, res) => {
+    const simulatedProcessingTime = 300; // 300ms processing time
+    
+    setTimeout(() => {
+        // Get the transaction data from request
+        const transaction = req.body;
+        
+        // Simulate server processing
+        const success = Math.random() > 0.1; // 90% success rate
+        
+        res.json({
+            success,
+            processingTime: simulatedProcessingTime,
+            message: success ? 'Transaction successful' : 'Transaction failed'
+        });
+    }, simulatedProcessingTime);
 });
 
 // Read transactions
@@ -22,7 +33,6 @@ app.get('/transactions.json', async (req, res) => {
         res.json(JSON.parse(data));
     } catch (error) {
         if (error.code === 'ENOENT') {
-            // If file doesn't exist, create it with empty array
             await fs.writeFile('transactions.json', '[]');
             res.json([]);
         } else {
