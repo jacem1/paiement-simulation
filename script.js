@@ -1,7 +1,6 @@
 // Add auto-fill functionality
 document.getElementById('autoFillButton').addEventListener('click', function() {
     const randomCard = cardData[Math.floor(Math.random() * cardData.length)];
-    
     document.getElementById('name').value = randomCard.name;
     document.getElementById('email').value = randomCard.name.toLowerCase().replace(' ', '.') + '@example.com';
     document.getElementById('cardNumber').value = randomCard.number;
@@ -9,17 +8,15 @@ document.getElementById('autoFillButton').addEventListener('click', function() {
     document.getElementById('cvv').value = randomCard.cvv;
 });
 
-// Payment processing with real response time measurement
-
+// Payment processing with server-side processing time
 document.getElementById('paymentForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     
-    const startTime = performance.now(); // Start time in milliseconds
-    
+    const clientStartTime = performance.now();
     const cardNumber = document.getElementById('cardNumber').value;
     const isValidCard = cardData.some(card => card.number === cardNumber);
     
-    // Calculate data size (rough estimation of the transaction data)
+    // Calculate data size
     const transactionData = {
         name: document.getElementById('name').value,
         email: document.getElementById('email').value,
@@ -28,31 +25,46 @@ document.getElementById('paymentForm').addEventListener('submit', async function
         cvv: document.getElementById('cvv').value
     };
     
-    // Calculate data size in bytes (JSON string length * 2 for UTF-16)
     const dataSize = JSON.stringify(transactionData).length * 2;
-    
-    const endTime = performance.now(); // End time in milliseconds
-    const responseTime = endTime - startTime; // Response time in milliseconds
-    
-    // Calculate throughput (bits per second)
-    // dataSize * 8 for bits, responseTime/1000 for seconds
-    const throughput = ((dataSize * 8) / (responseTime / 1000));
-    
-    const transaction = {
-        name: transactionData.name,
-        email: transactionData.email,
-        cardNumber: cardNumber,
-        expiryDate: transactionData.expiryDate,
-        cvv: transactionData.cvv,
-        time: new Date().toISOString(),
-        status: isValidCard ? 'Success' : (Math.random() < 0.8 ? 'Success' : 'Fail'),
-        responseTime: responseTime, // in milliseconds
-        dataSize: dataSize, // in bytes
-        throughput: throughput // in bits per second
-    };
 
-    // Store transaction and update UI
     try {
+        // Send request to server for processing
+        const processResponse = await fetch('/simulate-payment', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(transactionData)
+        });
+
+        const processResult = await processResponse.json();
+        const clientEndTime = performance.now();
+
+        // Calculate total response time (client + server + network)
+        const totalResponseTime = clientEndTime - clientStartTime;
+        
+        // Calculate network time (total - server processing)
+        const networkTime = totalResponseTime - processResult.processingTime;
+        
+        // Calculate throughput
+        const throughput = ((dataSize * 8) / (networkTime / 1000));
+
+        const transaction = {
+            name: transactionData.name,
+            email: transactionData.email,
+            cardNumber: cardNumber,
+            expiryDate: transactionData.expiryDate,
+            cvv: transactionData.cvv,
+            time: new Date().toISOString(),
+            status: processResult.success ? 'Success' : 'Fail',
+            responseTime: totalResponseTime,
+            serverProcessingTime: processResult.processingTime,
+            networkTime: networkTime,
+            dataSize: dataSize,
+            throughput: throughput
+        };
+
+        // Store transaction
         const response = await fetch('/transactions.json');
         const transactions = await response.json();
         transactions.push(transaction);
@@ -65,10 +77,12 @@ document.getElementById('paymentForm').addEventListener('submit', async function
             body: JSON.stringify(transactions)
         });
 
-        // Show message with network metrics
+        // Show detailed message
         const messageDiv = document.getElementById('message');
         messageDiv.textContent = `${transaction.status === 'Success' ? 'Payment Successful!' : 'Payment Failed!'} 
-            (Response Time: ${responseTime.toFixed(2)}ms, 
+            (Total Time: ${totalResponseTime.toFixed(2)}ms, 
+            Server Time: ${processResult.processingTime}ms,
+            Network Time: ${networkTime.toFixed(2)}ms,
             Data Size: ${formatBytes(dataSize)}, 
             Throughput: ${formatThroughput(throughput)})`;
         messageDiv.className = 'message ' + (transaction.status === 'Success' ? 'success' : 'error');
@@ -77,10 +91,11 @@ document.getElementById('paymentForm').addEventListener('submit', async function
             this.reset();
         }
     } catch (error) {
-        console.error('Error saving transaction:', error);
+        console.error('Error processing transaction:', error);
         alert('Error processing transaction. Please try again.');
     }
 });
+
 
 // Utility functions for formatting
 function formatBytes(bytes) {
