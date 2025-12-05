@@ -1,5 +1,8 @@
+// Global variables
 let updateInterval;
+let lastTransactionCount = 0;
 
+// Login handler
 document.getElementById('loginForm').addEventListener('submit', function(e) {
     e.preventDefault();
     
@@ -24,38 +27,7 @@ function startPolling() {
         clearInterval(updateInterval);
     }
     
-    // Poll every 1 second
-    updateInterval = setInterval(loadTransactions, 1000);
-}
-
-let updateInterval;
-let lastTransactionCount = 0; // Track number of transactions
-
-document.getElementById('loginForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    const username = document.getElementById('username').value;
-    const password = document.getElementById('password').value;
-
-    if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-        document.getElementById('loginSection').style.display = 'none';
-        document.getElementById('dashboardSection').style.display = 'block';
-        startPolling();
-    } else {
-        alert('Invalid credentials!');
-    }
-});
-
-function startPolling() {
-    // Initial load
-    loadTransactions();
-    
-    // Clear any existing interval
-    if (updateInterval) {
-        clearInterval(updateInterval);
-    }
-    
-    // Poll every 3 seconds instead of 1
+    // Poll every 3 seconds
     updateInterval = setInterval(loadTransactions, 3000);
 }
 
@@ -63,44 +35,40 @@ async function loadTransactions() {
     try {
         const response = await fetch(`/transactions.json?t=${new Date().getTime()}`);
         const transactions = await response.json();
+        
+        const transactionList = document.getElementById('transactionList');
+        transactionList.innerHTML = '';
 
-        // Only update if there are changes
-        if (transactions.length !== lastTransactionCount) {
-            lastTransactionCount = transactions.length;
-            
-            const transactionList = document.getElementById('transactionList');
-            transactionList.innerHTML = '';
+        // Sort transactions by time, most recent first
+        transactions.sort((a, b) => new Date(b.time) - new Date(a.time));
 
-            // Sort transactions by time, most recent first
-            transactions.sort((a, b) => new Date(b.time) - new Date(a.time));
+        transactions.forEach((transaction, index) => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${new Date(transaction.time).toLocaleString()}</td>
+                <td>${transaction.name}</td>
+                <td>${transaction.email}</td>
+                <td class="${transaction.status.toLowerCase()}-status">${transaction.status}</td>
+                <td>${transaction.responseTime?.toFixed(2) || '0'} ms</td>
+                <td>${formatBytes(transaction.dataSize || 0)}</td>
+                <td>${formatThroughput(transaction.throughput || 0)}</td>
+                <td>
+                    <button class="delete-btn" data-index="${index}">Delete</button>
+                </td>
+            `;
+            transactionList.appendChild(row);
+        });
 
-            transactions.forEach((transaction, index) => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${new Date(transaction.time).toLocaleString()}</td>
-                    <td>${transaction.name}</td>
-                    <td>${transaction.email}</td>
-                    <td class="${transaction.status.toLowerCase()}-status">${transaction.status}</td>
-                    <td>${transaction.responseTime?.toFixed(2) || '0'} ms</td>
-                    <td>${formatBytes(transaction.dataSize || 0)}</td>
-                    <td>${formatThroughput(transaction.throughput || 0)}</td>
-                    <td>
-                        <button class="delete-btn" data-index="${index}">Delete</button>
-                    </td>
-                `;
-                transactionList.appendChild(row);
+        // Add delete button handlers
+        document.querySelectorAll('.delete-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const index = parseInt(this.getAttribute('data-index'));
+                deleteTransaction(index);
             });
+        });
 
-            // Add delete button handlers
-            document.querySelectorAll('.delete-btn').forEach(button => {
-                button.addEventListener('click', function() {
-                    const index = parseInt(this.getAttribute('data-index'));
-                    deleteTransaction(index);
-                });
-            });
-
-            updateStats(transactions);
-        }
+        updateStats(transactions);
+        lastTransactionCount = transactions.length;
     } catch (error) {
         console.error('Error loading transactions:', error);
     }
@@ -108,7 +76,7 @@ async function loadTransactions() {
 
 async function deleteTransaction(index) {
     try {
-        // Temporarily stop polling while deleting
+        // Pause updates while deleting
         clearInterval(updateInterval);
 
         const response = await fetch('/transactions.json');
@@ -124,19 +92,16 @@ async function deleteTransaction(index) {
             body: JSON.stringify(transactions)
         });
 
-        // Update the last transaction count
-        lastTransactionCount = transactions.length;
-        
         // Load transactions immediately
         await loadTransactions();
         
-        // Restart polling
+        // Resume updates
         updateInterval = setInterval(loadTransactions, 3000);
 
     } catch (error) {
         console.error('Error deleting transaction:', error);
         alert('Error deleting transaction. Please try again.');
-        // Restart polling even if there's an error
+        // Resume updates even if there's an error
         updateInterval = setInterval(loadTransactions, 3000);
     }
 }
@@ -144,7 +109,7 @@ async function deleteTransaction(index) {
 async function clearAllTransactions() {
     if (confirm('Are you sure you want to delete all transactions?')) {
         try {
-            // Temporarily stop polling while clearing
+            // Pause updates while clearing
             clearInterval(updateInterval);
 
             await fetch('/transactions.json', {
@@ -155,19 +120,16 @@ async function clearAllTransactions() {
                 body: JSON.stringify([])
             });
 
-            // Update the last transaction count
-            lastTransactionCount = 0;
-            
             // Load transactions immediately
             await loadTransactions();
             
-            // Restart polling
+            // Resume updates
             updateInterval = setInterval(loadTransactions, 3000);
 
         } catch (error) {
             console.error('Error clearing transactions:', error);
             alert('Error clearing transactions. Please try again.');
-            // Restart polling even if there's an error
+            // Resume updates even if there's an error
             updateInterval = setInterval(loadTransactions, 3000);
         }
     }
@@ -206,7 +168,7 @@ function updateStats(transactions) {
     const avgFailureRT = failureResponseTimes.length > 0
         ? (failureResponseTimes.reduce((a, b) => a + b, 0) / failureResponseTimes.length)
         : 0;
-    
+
     const transactionsPerMinute = (recentTransactions.length / duration).toFixed(2);
     const lastTransaction = recentTransactions.length > 0 
         ? new Date(Math.max(...recentTransactions.map(t => new Date(t.time))))
@@ -225,25 +187,24 @@ function updateStats(transactions) {
     document.getElementById('lastTransactionTime').textContent = lastTransaction ? lastTransaction.toLocaleString() : '-';
     document.getElementById('avgSuccessResponseTime').textContent = avgSuccessRT.toFixed(2);
     document.getElementById('avgFailureResponseTime').textContent = avgFailureRT.toFixed(2);
-  // Add average throughput calculation
+
+    // Add network metrics calculations
     const throughputs = recentTransactions.map(t => t.throughput).filter(t => t != null);
     const avgThroughput = throughputs.length > 0
         ? throughputs.reduce((a, b) => a + b, 0) / throughputs.length
         : 0;
 
-    // Add average data size calculation
     const dataSizes = recentTransactions.map(t => t.dataSize).filter(t => t != null);
     const avgDataSize = dataSizes.length > 0
         ? dataSizes.reduce((a, b) => a + b, 0) / dataSizes.length
         : 0;
 
-    // Update additional metrics in the display
-    // ... (previous updates remain the same)
+    // Update network metrics display
     document.getElementById('avgThroughput').textContent = formatThroughput(avgThroughput);
     document.getElementById('avgDataSize').textContent = formatBytes(avgDataSize);
 }
 
-// Utility functions for formatting
+// Utility functions
 function formatBytes(bytes) {
     if (bytes < 1024) return bytes.toFixed(2) + " B";
     else if (bytes < 1048576) return (bytes / 1024).toFixed(2) + " KB";
