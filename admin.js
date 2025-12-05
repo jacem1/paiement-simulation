@@ -18,6 +18,57 @@ document.getElementById('loginForm').addEventListener('submit', function(e) {
     }
 });
 
+
+// Function to format table data
+function getTableDataForExport() {
+    const transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
+    let output = 'Time\tName\tEmail\tStatus\tResponse Time\tServer Time\tNetwork Time\tData Size\tThroughput\n';
+    
+    transactions.forEach(t => {
+        output += `${new Date(t.time).toLocaleString()}\t`;
+        output += `${t.name}\t`;
+        output += `${t.email}\t`;
+        output += `${t.status}\t`;
+        output += `${t.responseTime.toFixed(2)} ms\t`;
+        output += `${t.serverProcessingTime} ms\t`;
+        output += `${t.networkTime.toFixed(2)} ms\t`;
+        output += `${formatBytes(t.dataSize)}\t`;
+        output += `${formatThroughput(t.throughput)}\n`;
+    });
+    
+    return output;
+}
+
+// Export to TXT
+document.getElementById('exportTxtBtn').addEventListener('click', function() {
+    const data = getTableDataForExport();
+    const blob = new Blob([data], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `transactions_${new Date().toISOString().slice(0,10)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+});
+
+// Copy to Clipboard
+document.getElementById('copyClipboardBtn').addEventListener('click', async function() {
+    const data = getTableDataForExport();
+    try {
+        await navigator.clipboard.writeText(data);
+        alert('Data copied to clipboard!');
+    } catch (err) {
+        console.error('Failed to copy: ', err);
+        alert('Failed to copy to clipboard');
+    }
+});
+
+
+
+
+
 function startPolling() {
     // Initial load
     loadTransactions();
@@ -178,51 +229,6 @@ function updateStats(transactions) {
 
 
 
-// Function to format table data
-function getTableDataForExport() {
-    const transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
-    let output = 'Time\tName\tEmail\tStatus\tResponse Time\tServer Time\tNetwork Time\tData Size\tThroughput\n';
-    
-    transactions.forEach(t => {
-        output += `${new Date(t.time).toLocaleString()}\t`;
-        output += `${t.name}\t`;
-        output += `${t.email}\t`;
-        output += `${t.status}\t`;
-        output += `${t.responseTime.toFixed(2)} ms\t`;
-        output += `${t.serverProcessingTime} ms\t`;
-        output += `${t.networkTime.toFixed(2)} ms\t`;
-        output += `${formatBytes(t.dataSize)}\t`;
-        output += `${formatThroughput(t.throughput)}\n`;
-    });
-    
-    return output;
-}
-
-// Export to TXT
-document.getElementById('exportTxtBtn').addEventListener('click', function() {
-    const data = getTableDataForExport();
-    const blob = new Blob([data], { type: 'text/plain' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `transactions_${new Date().toISOString().slice(0,10)}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
-});
-
-// Copy to Clipboard
-document.getElementById('copyClipboardBtn').addEventListener('click', async function() {
-    const data = getTableDataForExport();
-    try {
-        await navigator.clipboard.writeText(data);
-        alert('Data copied to clipboard!');
-    } catch (err) {
-        console.error('Failed to copy: ', err);
-        alert('Failed to copy to clipboard');
-    }
-});
 
 
     
