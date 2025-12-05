@@ -126,6 +126,8 @@ document.getElementById('expiryDate').addEventListener('input', function(e) {
 document.getElementById('batchTransactionButton').addEventListener('click', async function() {
     const totalTransactions = 100;
     const messageDiv = document.getElementById('message');
+    let successfulTransactions = 0;
+    let failedTransactions = 0;
     
     // Disable the button during processing
     this.disabled = true;
@@ -133,35 +135,47 @@ document.getElementById('batchTransactionButton').addEventListener('click', asyn
 
     try {
         for (let i = 0; i < totalTransactions; i++) {
-            // Get a random card
-            const randomCard = cardData[Math.floor(Math.random() * cardData.length)];
-            
-            // Fill the form with random card data
-            document.getElementById('name').value = randomCard.name;
-            document.getElementById('email').value = randomCard.name.toLowerCase().replace(' ', '.') + '@example.com';
-            document.getElementById('cardNumber').value = randomCard.number;
-            document.getElementById('expiryDate').value = randomCard.expiry;
-            document.getElementById('cvv').value = randomCard.cvv;
+            try {
+                // Get a random card
+                const randomCard = cardData[Math.floor(Math.random() * cardData.length)];
+                
+                // Fill the form with random card data
+                document.getElementById('name').value = randomCard.name;
+                document.getElementById('email').value = randomCard.name.toLowerCase().replace(' ', '.') + '@example.com';
+                document.getElementById('cardNumber').value = randomCard.number;
+                document.getElementById('expiryDate').value = randomCard.expiry;
+                document.getElementById('cvv').value = randomCard.cvv;
 
-            // Update progress
-            messageDiv.textContent = `Processing transaction ${i + 1}/${totalTransactions}...`;
-            messageDiv.className = 'message info';
+                // Update progress
+                messageDiv.textContent = `Processing transaction ${i + 1}/${totalTransactions}...`;
+                messageDiv.className = 'message info';
 
-            // Submit the form programmatically
-            const submitEvent = new Event('submit', { cancelable: true });
-            await document.getElementById('paymentForm').dispatchEvent(submitEvent);
+                // Submit the form programmatically
+                const submitEvent = new Event('submit', { cancelable: true });
+                await document.getElementById('paymentForm').dispatchEvent(submitEvent);
+                successfulTransactions++;
 
-            // Small delay between transactions to avoid overwhelming the server
-            await new Promise(resolve => setTimeout(resolve, 100));
+                // Increased delay between transactions to 1 second
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            } catch (transactionError) {
+                console.error(`Error in transaction ${i + 1}:`, transactionError);
+                failedTransactions++;
+                // Continue with next transaction despite error
+                continue;
+            }
         }
 
-        // Show completion message
-        messageDiv.textContent = `Completed ${totalTransactions} transactions!`;
+        // Show completion message with statistics
+        messageDiv.textContent = `Batch processing completed: 
+            ${successfulTransactions} successful, 
+            ${failedTransactions} failed out of ${totalTransactions} transactions`;
         messageDiv.className = 'message success';
 
     } catch (error) {
         console.error('Error in batch processing:', error);
-        messageDiv.textContent = 'Error during batch processing. Please try again.';
+        messageDiv.textContent = `Batch processing interrupted. 
+            Completed: ${successfulTransactions} successful, 
+            ${failedTransactions} failed out of ${totalTransactions} transactions`;
         messageDiv.className = 'message error';
     } finally {
         // Re-enable the button
