@@ -7,48 +7,80 @@ const port = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.static('.'));
 
+// Store transactions in memory and periodically save to file
+let transactions = [];
+const TRANSACTIONS_FILE = 'transactions.json';
+
+// Load existing transactions on startup
+async function loadTransactions() {
+    try {
+        const data = await fs.readFile(TRANSACTIONS_FILE, 'utf8');
+        transactions = JSON.parse(data);
+    } catch (error) {
+        if (error.code === 'ENOENT') {
+            // File doesn't exist, start with empty array
+            await fs.writeFile(TRANSACTIONS_FILE, '[]');
+        } else {
+            console.error('Error loading transactions:', error);
+        }
+    }
+}
+
+// Save transactions to file
+async function saveTransactions() {
+    try {
+        await fs.writeFile(TRANSACTIONS_FILE, JSON.stringify(transactions, null, 2));
+    } catch (error) {
+        console.error('Error saving transactions:', error);
+    }
+}
+
+// Load transactions on startup
+loadTransactions();
+
 // Simulate payment processing endpoint
-app.post('/simulate-payment', (req, res) => {
+app.post('/simulate-payment', async (req, res) => {
     const simulatedProcessingTime = 300; // 300ms processing time
     
-    setTimeout(() => {
+    setTimeout(async () => {
         // Get the transaction data from request
-        const transaction = req.body;
+        const transaction = {
+            ...req.body,
+            timestamp: new Date().toISOString(),
+            id: Date.now().toString()
+        };
         
         // Simulate server processing
         const success = Math.random() > 0.1; // 90% success rate
         
+        if (success) {
+            // Store the transaction
+            transactions.push(transaction);
+            // Save to file
+            await saveTransactions();
+            
+            console.log('New transaction:', transaction);
+        }
+        
         res.json({
             success,
             processingTime: simulatedProcessingTime,
-            message: success ? 'Transaction successful' : 'Transaction failed'
+            message: success ? 'Transaction successful' : 'Transaction failed',
+            transactionId: transaction.id
         });
     }, simulatedProcessingTime);
 });
 
 // Read transactions
 app.get('/transactions.json', async (req, res) => {
-    try {
-        const data = await fs.readFile('transactions.json', 'utf8');
-        res.json(JSON.parse(data));
-    } catch (error) {
-        if (error.code === 'ENOENT') {
-            await fs.writeFile('transactions.json', '[]');
-            res.json([]);
-        } else {
-            res.status(500).send('Error reading transactions');
-        }
-    }
+    res.json(transactions);
 });
 
-// Update transactions
-app.put('/transactions.json', async (req, res) => {
-    try {
-        await fs.writeFile('transactions.json', JSON.stringify(req.body, null, 2));
-        res.send('Transactions updated');
-    } catch (error) {
-        res.status(500).send('Error updating transactions');
-    }
+// Clear all transactions (for testing)
+app.delete('/transactions.json', async (req, res) => {
+    transactions = [];
+    await saveTransactions();
+    res.send('All transactions cleared');
 });
 
 app.listen(port, () => {
