@@ -10,6 +10,12 @@
             margin: 20px;
             background-color: #f5f5f5;
         }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
         .transaction {
             background-color: white;
             padding: 15px;
@@ -21,6 +27,7 @@
         .timestamp {
             color: #666;
             font-size: 0.9em;
+            margin-bottom: 10px;
         }
         .card-info {
             margin: 10px 0;
@@ -28,129 +35,57 @@
             background-color: #f8f8f8;
             border-radius: 3px;
         }
-        .refresh-button {
+        .device-info {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 10px;
+        }
+        .button {
             padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .refresh {
             background-color: #4CAF50;
             color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            margin-bottom: 20px;
         }
-        .clear-button {
-            padding: 10px 20px;
+        .clear {
             background-color: #f44336;
             color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
             margin-left: 10px;
         }
-        .amount {
+        .error {
+            color: #f44336;
+            padding: 10px;
+            background-color: #ffebee;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        #transactionCount {
             font-size: 1.2em;
             font-weight: bold;
             color: #4CAF50;
         }
-        .device-info {
-            font-size: 0.9em;
-            color: #666;
-        }
     </style>
 </head>
 <body>
-    <h1>Payment Transactions</h1>
-    <button onclick="loadTransactions()" class="refresh-button">Refresh</button>
-    <button onclick="clearTransactions()" class="clear-button">Clear All</button>
-    <div id="transactions"></div>
+    <div class="header">
+        <h1>Payment Transactions</h1>
+        <div>
+            <span>Total Transactions: </span>
+            <span id="transactionCount">0</span>
+        </div>
+    </div>
+    
+    <div>
+        <button onclick="loadTransactions()" class="button refresh">Refresh</button>
+        <button onclick="clearAllTransactions()" class="button clear">Clear All</button>
+    </div>
 
-    <script>
-        function formatDate(dateString) {
-            try {
-                const date = new Date(dateString);
-                return date.toLocaleString();
-            } catch (e) {
-                return dateString;
-            }
-        }
+    <div id="transactionList"></div>
 
-        function formatAmount(amount) {
-            return typeof amount === 'number' 
-                ? `€${amount.toFixed(2)}` 
-                : 'Amount not available';
-        }
-
-        function maskCardNumber(number) {
-            if (!number) return 'N/A';
-            const last4 = number.slice(-4);
-            return `**** **** **** ${last4}`;
-        }
-
-        function loadTransactions() {
-            fetch('/transactions')
-                .then(response => response.json())
-                .then(transactions => {
-                    const container = document.getElementById('transactions');
-                    container.innerHTML = '';
-                    
-                    if (!transactions || transactions.length === 0) {
-                        container.innerHTML = '<p>No transactions found</p>';
-                        return;
-                    }
-
-                    transactions.reverse().forEach(t => {
-                        const div = document.createElement('div');
-                        div.className = 'transaction';
-                        div.innerHTML = `
-                            <div class="timestamp">
-                                Transaction Time: ${formatDate(t.timestamp)}
-                            </div>
-                            <div class="card-info">
-                                <h3>Transaction ID: ${t.id || 'N/A'}</h3>
-                                <p>Card Type: ${t.type || 'Unknown'}</p>
-                                <p>Card Number: ${maskCardNumber(t.number)}</p>
-                                <p>Expiry: ${t.expiry || 'N/A'}</p>
-                                <p class="amount">Amount: ${formatAmount(t.amount)}</p>
-                            </div>
-                            <div class="device-info">
-                                <p>Device: ${t.deviceInfo || 'N/A'}</p>
-                                <p>Read Time: ${formatDate(t.readTime)}</p>
-                            </div>
-                        `;
-                        container.appendChild(div);
-                    });
-                })
-                .catch(error => {
-                    console.error('Error loading transactions:', error);
-                    document.getElementById('transactions').innerHTML = 
-                        '<p style="color: red;">Error loading transactions. Please try refreshing.</p>';
-                });
-        }
-
-        function clearTransactions() {
-            if (!confirm('Are you sure you want to clear all transactions?')) return;
-            
-            fetch('/transactions', { 
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            })
-                .then(response => response.json())
-                .then(result => {
-                    console.log('Transactions cleared:', result);
-                    loadTransactions();
-                })
-                .catch(error => {
-                    console.error('Error clearing transactions:', error);
-                    alert('Error clearing transactions. Please try again.');
-                });
-        }
-
-        // Load transactions on page load
-        loadTransactions();
-        
-        // Refresh every 30 seconds
-        setInterval(loadTransactions, 30000);
-    </script>
+    <script src="admin.js"></script>
 </body>
 </html>
