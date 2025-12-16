@@ -7,7 +7,7 @@ const port = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.static('.'));
 
-// Store transactions in memory and periodically save to file
+// Store transactions in memory and file
 let transactions = [];
 const TRANSACTIONS_FILE = 'transactions.json';
 
@@ -16,10 +16,12 @@ async function loadTransactions() {
     try {
         const data = await fs.readFile(TRANSACTIONS_FILE, 'utf8');
         transactions = JSON.parse(data);
+        console.log('Loaded transactions:', transactions.length);
     } catch (error) {
         if (error.code === 'ENOENT') {
-            // File doesn't exist, start with empty array
+            // File doesn't exist, create it
             await fs.writeFile(TRANSACTIONS_FILE, '[]');
+            console.log('Created new transactions file');
         } else {
             console.error('Error loading transactions:', error);
         }
@@ -30,6 +32,7 @@ async function loadTransactions() {
 async function saveTransactions() {
     try {
         await fs.writeFile(TRANSACTIONS_FILE, JSON.stringify(transactions, null, 2));
+        console.log('Saved transactions:', transactions.length);
     } catch (error) {
         console.error('Error saving transactions:', error);
     }
@@ -40,6 +43,8 @@ loadTransactions();
 
 // Simulate payment processing endpoint
 app.post('/simulate-payment', async (req, res) => {
+    console.log('Received payment request:', req.body);
+    
     const simulatedProcessingTime = 300; // 300ms processing time
     
     setTimeout(async () => {
@@ -59,7 +64,7 @@ app.post('/simulate-payment', async (req, res) => {
             // Save to file
             await saveTransactions();
             
-            console.log('New transaction:', transaction);
+            console.log('Transaction stored:', transaction);
         }
         
         res.json({
@@ -71,18 +76,19 @@ app.post('/simulate-payment', async (req, res) => {
     }, simulatedProcessingTime);
 });
 
-// Read transactions
-app.get('/transactions.json', async (req, res) => {
+// Get transactions
+app.get('/transactions', (req, res) => {
     res.json(transactions);
 });
 
-// Clear all transactions (for testing)
-app.delete('/transactions.json', async (req, res) => {
+// Clear transactions (for testing)
+app.delete('/transactions', async (req, res) => {
     transactions = [];
     await saveTransactions();
-    res.send('All transactions cleared');
+    res.json({ message: 'All transactions cleared' });
 });
 
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
+    console.log(`Transactions file: ${path.resolve(TRANSACTIONS_FILE)}`);
 });
