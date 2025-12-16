@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Payment Transactions Admin</title>
+    <title>Payment Transactions Dashboard</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -24,45 +24,99 @@
         }
         .stat-card {
             background-color: white;
-            padding: 15px;
+            padding: 20px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         .stat-title {
             color: #666;
-            font-size: 0.9em;
-            margin-bottom: 5px;
+            font-size: 1.1em;
+            margin-bottom: 10px;
         }
         .stat-value {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #2196F3;
+        }
+        .stat-subtitle {
+            color: #999;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+        .timing-container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .timing-title {
+            font-size: 1.2em;
+            color: #333;
+            margin-bottom: 15px;
+        }
+        .timing-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+        }
+        .timing-item {
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .timing-label {
+            color: #666;
+            margin-bottom: 5px;
+        }
+        .timing-value {
             font-size: 1.4em;
             font-weight: bold;
             color: #2196F3;
         }
         .transaction {
             background-color: white;
-            padding: 15px;
-            margin-bottom: 10px;
-            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            border-left: 4px solid #4CAF50;
         }
-        .timestamp {
+        .transaction-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .transaction-id {
+            font-weight: bold;
+            color: #333;
+        }
+        .transaction-time {
+            color: #666;
+        }
+        .timing-details {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+        }
+        .timing-detail {
+            text-align: center;
+        }
+        .timing-detail-label {
             color: #666;
             font-size: 0.9em;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
         }
-        .card-info {
-            margin: 10px 0;
-            padding: 10px;
-            background-color: #f8f8f8;
-            border-radius: 3px;
-        }
-        .metrics-info {
-            margin-top: 10px;
-            padding: 10px;
-            background-color: #e3f2fd;
-            border-radius: 3px;
-            font-size: 0.9em;
+        .timing-detail-value {
+            font-weight: bold;
+            color: #2196F3;
         }
         .button {
             padding: 10px 20px;
@@ -73,7 +127,7 @@
             margin: 5px;
         }
         .refresh {
-            background-color: #4CAF50;
+            background-color: #2196F3;
             color: white;
         }
         .clear {
@@ -91,15 +145,12 @@
             border-radius: 4px;
             border: 1px solid #ddd;
         }
-        .success { color: #4CAF50; }
-        .error { color: #f44336; }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>Payment Transactions Dashboard</h1>
         <div>
-            <span>Time Window: </span>
             <select id="timeWindow" onchange="loadTransactions()">
                 <option value="5">Last 5 minutes</option>
                 <option value="15">Last 15 minutes</option>
@@ -117,40 +168,36 @@
             <div class="stat-value" id="totalTransactions">0</div>
         </div>
         <div class="stat-card">
+            <div class="stat-title">Average Total Time</div>
+            <div class="stat-value" id="avgTotalTime">0 ms</div>
+            <div class="stat-subtitle">Network + Processing</div>
+        </div>
+        <div class="stat-card">
             <div class="stat-title">Success Rate</div>
             <div class="stat-value" id="successRate">0%</div>
         </div>
-        <div class="stat-card">
-            <div class="stat-title">Avg Response Time</div>
-            <div class="stat-value" id="avgResponseTime">0 ms</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-title">Throughput</div>
-            <div class="stat-value" id="throughput">0/min</div>
-        </div>
     </div>
 
-    <div class="stats-container">
-        <div class="stat-card">
-            <div class="stat-title">Network Time (Avg)</div>
-            <div class="stat-value" id="avgNetworkTime">0 ms</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-title">Processing Time (Avg)</div>
-            <div class="stat-value" id="avgProcessingTime">0 ms</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-title">Data Size (Avg)</div>
-            <div class="stat-value" id="avgDataSize">0 KB</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-title">Last Transaction</div>
-            <div class="stat-value" id="lastTransaction">-</div>
+    <div class="timing-container">
+        <div class="timing-title">Time Analysis</div>
+        <div class="timing-grid">
+            <div class="timing-item">
+                <div class="timing-label">Network Time (Avg)</div>
+                <div class="timing-value" id="avgNetworkTime">0 ms</div>
+            </div>
+            <div class="timing-item">
+                <div class="timing-label">Processing Time</div>
+                <div class="timing-value">300 ms</div>
+            </div>
+            <div class="timing-item">
+                <div class="timing-label">Total Time (Avg)</div>
+                <div class="timing-value" id="avgTotalTimeDetail">0 ms</div>
+            </div>
         </div>
     </div>
 
     <div class="controls">
-        <button onclick="loadTransactions()" class="button refresh">Refresh</button>
+        <button onclick="loadTransactions()" class="button refresh">Refresh Data</button>
         <button onclick="clearAllTransactions()" class="button clear">Clear All</button>
     </div>
 
