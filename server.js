@@ -49,48 +49,51 @@ loadTransactions();
 // In server.js, modify the simulate-payment endpoint:
 
 app.post('/simulate-payment', async (req, res) => {
-    const startTime = Date.now();
+    const startTime = process.hrtime();
     console.log('Received payment request:', JSON.stringify(req.body, null, 2));
     
-    const processingTime = 300; // Fixed processing time: 300ms
+    const PROCESSING_TIME = 300; // Fixed processing time in ms
     
     setTimeout(async () => {
         try {
-            // Get the transaction data from request
-            const endTime = Date.now();
-            const networkTime = endTime - startTime - processingTime; // Time minus processing time
-            
+            const endTime = process.hrtime(startTime);
+            const totalTimeMs = (endTime[0] * 1000 + endTime[1] / 1000000);
+            const networkTimeMs = totalTimeMs - PROCESSING_TIME;
+
             const transaction = {
                 ...req.body,
                 timestamp: new Date().toISOString(),
                 id: Date.now().toString(),
-                processingTime: processingTime,
-                networkTime: networkTime,
-                totalTime: endTime - startTime
+                responseTime: totalTimeMs,           // Total round trip time
+                serverProcessingTime: PROCESSING_TIME, // Fixed processing time
+                networkTime: networkTimeMs,          // Network latency
+                dataSize: JSON.stringify(req.body).length, // Request size in bytes
+                throughput: (JSON.stringify(req.body).length / networkTimeMs) * 1000 // Bytes per second
             };
             
             // Simulate server processing
             const success = Math.random() > 0.1; // 90% success rate
             
             if (success) {
-                // Store the transaction
                 transactions.push(transaction);
-                // Save to file
                 await saveTransactions();
                 
-                console.log('Transaction stored successfully');
-                console.log('Timing metrics:', {
-                    processingTime,
-                    networkTime,
-                    totalTime: endTime - startTime
+                console.log('Transaction metrics:', {
+                    totalTime: totalTimeMs.toFixed(2) + 'ms',
+                    processingTime: PROCESSING_TIME + 'ms',
+                    networkTime: networkTimeMs.toFixed(2) + 'ms',
+                    dataSize: transaction.dataSize + ' bytes',
+                    throughput: transaction.throughput.toFixed(2) + ' B/s'
                 });
             }
             
             res.json({
                 success,
-                processingTime,
-                networkTime,
-                totalTime: endTime - startTime,
+                responseTime: totalTimeMs,
+                serverProcessingTime: PROCESSING_TIME,
+                networkTime: networkTimeMs,
+                dataSize: transaction.dataSize,
+                throughput: transaction.throughput,
                 message: success ? 'Transaction successful' : 'Transaction failed',
                 transactionId: transaction.id
             });
@@ -102,7 +105,7 @@ app.post('/simulate-payment', async (req, res) => {
                 error: error.message
             });
         }
-    }, processingTime);
+    }, PROCESSING_TIME);
 });
 
 // Get all transactions
