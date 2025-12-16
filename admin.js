@@ -1,4 +1,5 @@
 let updateInterval;
+const PROCESSING_TIME = 300; // Fixed processing time in ms
 
 function startPolling() {
     loadTransactions();
@@ -19,53 +20,33 @@ function calculateMetrics(transactions) {
     );
 
     const successful = filteredTransactions.filter(t => t.success);
-    const failed = filteredTransactions.filter(t => !t.success);
 
     // Basic metrics
     const totalCount = filteredTransactions.length;
     const successRate = totalCount > 0 ? (successful.length / totalCount * 100) : 0;
 
     // Time calculations
-    const responseTimes = filteredTransactions.map(t => t.processingTime || 0);
-    const avgResponseTime = responseTimes.length > 0 ? 
-        responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length : 0;
-
-    // Network metrics
     const networkTimes = filteredTransactions.map(t => {
-        const total = t.processingTime || 0;
-        const processing = t.serverProcessingTime || 0;
-        return total - processing;
+        const responseTime = t.processingTime || 0;
+        return responseTime - PROCESSING_TIME; // Network time = Total time - Processing time
     });
+
     const avgNetworkTime = networkTimes.length > 0 ?
         networkTimes.reduce((a, b) => a + b, 0) / networkTimes.length : 0;
 
-    // Throughput calculation
-    const timeSpanMinutes = timeWindow === 'all' ? 
-        (now - new Date(Math.min(...filteredTransactions.map(t => new Date(t.timestamp))))) / (1000 * 60) :
-        parseInt(timeWindow);
-    const throughput = timeSpanMinutes > 0 ? totalCount / timeSpanMinutes : 0;
+    const avgTotalTime = avgNetworkTime + PROCESSING_TIME;
 
     return {
         totalCount,
         successRate,
-        avgResponseTime,
-        throughput,
         avgNetworkTime,
-        avgProcessingTime: avgResponseTime - avgNetworkTime,
-        lastTransaction: filteredTransactions.length > 0 ? 
-            new Date(Math.max(...filteredTransactions.map(t => new Date(t.timestamp)))) : null
+        avgTotalTime,
+        transactions: filteredTransactions
     };
 }
 
-function formatBytes(bytes) {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
-
 function formatDuration(ms) {
+    if (ms < 0) ms = 0;
     if (ms < 1000) return `${ms.toFixed(1)} ms`;
     return `${(ms/1000).toFixed(2)} s`;
 }
@@ -81,36 +62,44 @@ async function loadTransactions() {
         // Update statistics
         document.getElementById('totalTransactions').textContent = metrics.totalCount;
         document.getElementById('successRate').textContent = `${metrics.successRate.toFixed(1)}%`;
-        document.getElementById('avgResponseTime').textContent = formatDuration(metrics.avgResponseTime);
-        document.getElementById('throughput').textContent = `${metrics.throughput.toFixed(1)}/min`;
         document.getElementById('avgNetworkTime').textContent = formatDuration(metrics.avgNetworkTime);
-        document.getElementById('avgProcessingTime').textContent = formatDuration(metrics.avgProcessingTime);
-        document.getElementById('lastTransaction').textContent = metrics.lastTransaction ? 
-            metrics.lastTransaction.toLocaleTimeString() : '-';
+        document.getElementById('avgTotalTime').textContent = formatDuration(metrics.avgTotalTime);
+        document.getElementById('avgTotalTimeDetail').textContent = formatDuration(metrics.avgTotalTime);
 
         // Update transaction list
         const transactionList = document.getElementById('transactionList');
         transactionList.innerHTML = '';
 
-        transactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+        metrics.transactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
             .forEach(transaction => {
+                const networkTime = (transaction.processingTime || 0) - PROCESSING_TIME;
+                const totalTime = networkTime + PROCESSING_TIME;
+
                 const row = document.createElement('div');
                 row.className = 'transaction';
                 row.innerHTML = `
-                    <div class="timestamp">
-                        <strong>Transaction Time:</strong> ${new Date(transaction.timestamp).toLocaleString()}
+                    <div class="transaction-header">
+                        <span class="transaction-id">Transaction ${transaction.id}</span>
+                        <span class="transaction-time">${new Date(transaction.timestamp).toLocaleString()}</span>
                     </div>
-                    <div class="card-info">
-                        <p><strong>Transaction ID:</strong> ${transaction.id || 'N/A'}</p>
+                    <div>
                         <p><strong>Card Type:</strong> ${transaction.type || 'Unknown'}</p>
                         <p><strong>Card Number:</strong> **** **** **** ${transaction.number.slice(-4)}</p>
-                        <p><strong>Expiry:</strong> ${transaction.expiry || 'N/A'}</p>
                         <p><strong>Amount:</strong> €${transaction.amount?.toFixed(2) || '0.00'}</p>
                     </div>
-                    <div class="metrics-info">
-                        <p><strong>Processing Time:</strong> ${formatDuration(transaction.processingTime || 0)}</p>
-                        <p><strong>Device:</strong> ${transaction.deviceInfo || 'N/A'}</p>
-                        <p><strong>Read Time:</strong> ${transaction.readTime || 'N/A'}</p>
+                    <div class="timing-details">
+                        <div class="timing-detail">
+                            <div class="timing-detail-label">Network Time</div>
+                            <div class="timing-detail-value">${formatDuration(networkTime)}</div>
+                        </div>
+                        <div class="timing-detail">
+                            <div class="timing-detail-label">Processing Time</div>
+                            <div class="timing-detail-value">${formatDuration(PROCESSING_TIME)}</div>
+                        </div>
+                        <div class="timing-detail">
+                            <div class="timing-detail-label">Total Time</div>
+                            <div class="timing-detail-value">${formatDuration(totalTime)}</div>
+                        </div>
                     </div>
                 `;
                 transactionList.appendChild(row);
@@ -119,7 +108,8 @@ async function loadTransactions() {
     } catch (error) {
         console.error('Error loading transactions:', error);
         document.getElementById('transactionList').innerHTML = 
-            '<div class="error">Error loading transactions. Please refresh the page.</div>';
+            '<div style="color: #f44336; padding: 20px; background: white; border-radius: 8px;">' +
+            'Error loading transactions. Please refresh the page.</div>';
     }
 }
 
