@@ -16,6 +16,28 @@
             align-items: center;
             margin-bottom: 20px;
         }
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background-color: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .stat-title {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+        .stat-value {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #2196F3;
+        }
         .transaction {
             background-color: white;
             padding: 15px;
@@ -35,10 +57,12 @@
             background-color: #f8f8f8;
             border-radius: 3px;
         }
-        .device-info {
-            font-size: 0.9em;
-            color: #666;
+        .metrics-info {
             margin-top: 10px;
+            padding: 10px;
+            background-color: #e3f2fd;
+            border-radius: 3px;
+            font-size: 0.9em;
         }
         .button {
             padding: 10px 20px;
@@ -46,6 +70,7 @@
             border-radius: 5px;
             cursor: pointer;
             font-size: 14px;
+            margin: 5px;
         }
         .refresh {
             background-color: #4CAF50;
@@ -54,32 +79,77 @@
         .clear {
             background-color: #f44336;
             color: white;
-            margin-left: 10px;
         }
-        .error {
-            color: #f44336;
-            padding: 10px;
-            background-color: #ffebee;
-            border-radius: 5px;
-            margin: 10px 0;
+        .controls {
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
-        #transactionCount {
-            font-size: 1.2em;
-            font-weight: bold;
-            color: #4CAF50;
+        select {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
         }
+        .success { color: #4CAF50; }
+        .error { color: #f44336; }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>Payment Transactions</h1>
+        <h1>Payment Transactions Dashboard</h1>
         <div>
-            <span>Total Transactions: </span>
-            <span id="transactionCount">0</span>
+            <span>Time Window: </span>
+            <select id="timeWindow" onchange="loadTransactions()">
+                <option value="5">Last 5 minutes</option>
+                <option value="15">Last 15 minutes</option>
+                <option value="30">Last 30 minutes</option>
+                <option value="60">Last hour</option>
+                <option value="1440">Last 24 hours</option>
+                <option value="all">All time</option>
+            </select>
         </div>
     </div>
-    
-    <div>
+
+    <div class="stats-container">
+        <div class="stat-card">
+            <div class="stat-title">Total Transactions</div>
+            <div class="stat-value" id="totalTransactions">0</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-title">Success Rate</div>
+            <div class="stat-value" id="successRate">0%</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-title">Avg Response Time</div>
+            <div class="stat-value" id="avgResponseTime">0 ms</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-title">Throughput</div>
+            <div class="stat-value" id="throughput">0/min</div>
+        </div>
+    </div>
+
+    <div class="stats-container">
+        <div class="stat-card">
+            <div class="stat-title">Network Time (Avg)</div>
+            <div class="stat-value" id="avgNetworkTime">0 ms</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-title">Processing Time (Avg)</div>
+            <div class="stat-value" id="avgProcessingTime">0 ms</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-title">Data Size (Avg)</div>
+            <div class="stat-value" id="avgDataSize">0 KB</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-title">Last Transaction</div>
+            <div class="stat-value" id="lastTransaction">-</div>
+        </div>
+    </div>
+
+    <div class="controls">
         <button onclick="loadTransactions()" class="button refresh">Refresh</button>
         <button onclick="clearAllTransactions()" class="button clear">Clear All</button>
     </div>
