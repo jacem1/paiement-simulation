@@ -1,18 +1,17 @@
 const express = require('express');
 const fs = require('fs').promises;
 const path = require('path');
-const cors = require('cors');  // Add CORS support
+const cors = require('cors');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Enable CORS
+// Enable CORS for all routes
 app.use(cors());
 app.use(express.json());
-app.use(express.static('.'));
 
 // Store transactions in memory and file
 let transactions = [];
-const TRANSACTIONS_FILE = path.join(__dirname, 'transactions.json');
+const TRANSACTIONS_FILE = 'transactions.json'; // Simplified path
 
 // Load existing transactions on startup
 async function loadTransactions() {
@@ -45,6 +44,9 @@ async function saveTransactions() {
 // Load transactions on startup
 loadTransactions();
 
+// Serve static files including transactions.json
+app.use(express.static('.'));
+
 // Simulate payment processing endpoint
 app.post('/simulate-payment', async (req, res) => {
     const startTime = process.hrtime();
@@ -62,24 +64,16 @@ app.post('/simulate-payment', async (req, res) => {
                 ...req.body,
                 timestamp: new Date().toISOString(),
                 id: Date.now().toString(),
-                success: true,  // Set success to true for all transactions
-                responseTime: totalTimeMs,           // Total round trip time
-                serverProcessingTime: PROCESSING_TIME, // Fixed processing time
-                networkTime: networkTimeMs,          // Network latency
-                dataSize: JSON.stringify(req.body).length, // Request size in bytes
-                throughput: (JSON.stringify(req.body).length / networkTimeMs) * 1000 // Bytes per second
+                success: true,
+                responseTime: totalTimeMs,
+                serverProcessingTime: PROCESSING_TIME,
+                networkTime: networkTimeMs,
+                dataSize: JSON.stringify(req.body).length,
+                throughput: (JSON.stringify(req.body).length / networkTimeMs) * 1000
             };
             
             transactions.push(transaction);
-            await saveTransactions();
-            
-            console.log('Transaction metrics:', {
-                totalTime: totalTimeMs.toFixed(2) + 'ms',
-                processingTime: PROCESSING_TIME + 'ms',
-                networkTime: networkTimeMs.toFixed(2) + 'ms',
-                dataSize: transaction.dataSize + ' bytes',
-                throughput: transaction.throughput.toFixed(2) + ' B/s'
-            });
+            await saveTransactions(); // Save immediately after adding
             
             res.json({
                 success: true,
@@ -102,17 +96,13 @@ app.post('/simulate-payment', async (req, res) => {
     }, PROCESSING_TIME);
 });
 
-// Get all transactions - Make sure CORS is enabled for this endpoint
-app.get('/transactions', (req, res) => {
-    console.log('GET /transactions - Sending transactions:', transactions.length);
-    res.header('Access-Control-Allow-Origin', '*');  // Enable CORS specifically for this endpoint
-    res.header('Access-Control-Allow-Methods', 'GET');
-    res.header('Access-Control-Allow-Headers', 'Content-Type');
-    res.json(transactions);
+// Serve admin dashboard
+app.get('/admin', (req, res) => {
+    res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
 // Clear all transactions
-app.delete('/transactions', async (req, res) => {
+app.delete('/transactions.json', async (req, res) => {
     try {
         transactions = [];
         await saveTransactions();
@@ -122,26 +112,7 @@ app.delete('/transactions', async (req, res) => {
     }
 });
 
-// Serve static files
-app.use(express.static(path.join(__dirname)));
-
-// Serve admin dashboard
-app.get('/admin', (req, res) => {
-    res.sendFile(path.join(__dirname, 'admin.html'));
-});
-
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
-    console.log(`Transactions file: ${TRANSACTIONS_FILE}`);
     console.log(`Admin dashboard: http://localhost:${port}/admin`);
-});
-
-// Error handling middleware
-app.use((err, req, res, next) => {
-    console.error('Server error:', err);
-    res.status(500).json({
-        success: false,
-        message: 'Internal server error',
-        error: err.message
-    });
 });
