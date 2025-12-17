@@ -72,20 +72,28 @@ function formatThroughput(bytesPerSec) {
 
 async function loadTransactions() {
     try {
-        const response = await fetch('https://payment-simulation-gbyy.onrender.com/transactions');
+        const response = await fetch('https://paiement-simulation.onrender.com/transactions');
 
         const transactions = await response.json();
         
         const metrics = calculateMetrics(transactions);
+
+        // In loadTransactions function, update these lines:
+document.getElementById('totalTransactions').textContent = metrics.totalCount;
+document.getElementById('successRate').textContent = `${metrics.successRate.toFixed(1)}%`;
+document.getElementById('avgTotalTime').textContent = formatDuration(metrics.avgResponseTime);
+document.getElementById('avgNetworkTime').textContent = formatDuration(metrics.avgNetworkTime);
+document.getElementById('avgTotalTimeDetail').textContent = formatDuration(metrics.avgResponseTime);
+
         
         // Update statistics
         document.getElementById('totalTransactions').textContent = metrics.totalCount;
         document.getElementById('successRate').textContent = `${metrics.successRate.toFixed(1)}%`;
-        document.getElementById('avgResponseTime').textContent = formatDuration(metrics.avgResponseTime);
+        //document.getElementById('avgResponseTime').textContent = formatDuration(metrics.avgResponseTime);
         document.getElementById('avgNetworkTime').textContent = formatDuration(metrics.avgNetworkTime);
         document.getElementById('avgProcessingTime').textContent = formatDuration(metrics.avgProcessingTime);
-        document.getElementById('avgThroughput').textContent = formatThroughput(metrics.avgThroughput);
-        document.getElementById('avgDataSize').textContent = formatBytes(metrics.avgDataSize);
+        //document.getElementById('avgThroughput').textContent = formatThroughput(metrics.avgThroughput);
+        //document.getElementById('avgDataSize').textContent = formatBytes(metrics.avgDataSize);
 
         // Update transaction list
         const transactionList = document.getElementById('transactionList');
@@ -138,7 +146,7 @@ async function clearAllTransactions() {
     if (!confirm('Are you sure you want to delete all transactions?')) return;
     
     try {
-     const response = await fetch('https://payment-simulation-gbyy.onrender.com/transactions', {
+const response = await fetch('https://paiement-simulation.onrender.com/transactions', {
     method: 'DELETE'
 });
         
