@@ -9,7 +9,6 @@ function startPolling() {
     updateInterval = setInterval(loadTransactions, 3000);
 }
 
-// In admin.js, update the calculateMetrics function:
 function calculateMetrics(transactions) {
     const timeWindow = document.getElementById('timeWindow').value;
     const now = Date.now();
@@ -27,8 +26,6 @@ function calculateMetrics(transactions) {
             avgResponseTime: 0,
             avgNetworkTime: 0,
             avgProcessingTime: 0,
-            avgThroughput: 0,
-            avgDataSize: 0,
             transactions: []
         };
     }
@@ -39,8 +36,6 @@ function calculateMetrics(transactions) {
     const avgResponseTime = filteredTransactions.reduce((sum, t) => sum + (t.responseTime || 0), 0) / filteredTransactions.length;
     const avgNetworkTime = filteredTransactions.reduce((sum, t) => sum + (t.networkTime || 0), 0) / filteredTransactions.length;
     const avgProcessingTime = filteredTransactions.reduce((sum, t) => sum + (t.serverProcessingTime || 0), 0) / filteredTransactions.length;
-    const avgThroughput = filteredTransactions.reduce((sum, t) => sum + (t.throughput || 0), 0) / filteredTransactions.length;
-    const avgDataSize = filteredTransactions.reduce((sum, t) => sum + (t.dataSize || 0), 0) / filteredTransactions.length;
 
     return {
         totalCount: filteredTransactions.length,
@@ -48,8 +43,6 @@ function calculateMetrics(transactions) {
         avgResponseTime,
         avgNetworkTime,
         avgProcessingTime,
-        avgThroughput,
-        avgDataSize,
         transactions: filteredTransactions
     };
 }
@@ -58,42 +51,22 @@ function formatDuration(ms) {
     return ms < 1000 ? `${ms.toFixed(1)} ms` : `${(ms/1000).toFixed(2)} s`;
 }
 
-function formatBytes(bytes) {
-    if (bytes < 1024) return `${bytes.toFixed(0)} B`;
-    if (bytes < 1048576) return `${(bytes/1024).toFixed(1)} KB`;
-    return `${(bytes/1048576).toFixed(1)} MB`;
-}
-
-function formatThroughput(bytesPerSec) {
-    if (bytesPerSec < 1024) return `${bytesPerSec.toFixed(0)} B/s`;
-    if (bytesPerSec < 1048576) return `${(bytesPerSec/1024).toFixed(1)} KB/s`;
-    return `${(bytesPerSec/1048576).toFixed(1)} MB/s`;
-}
-
 async function loadTransactions() {
     try {
         const response = await fetch('https://paiement-simulation.onrender.com/transactions');
-
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
         const transactions = await response.json();
         
         const metrics = calculateMetrics(transactions);
-
-        // In loadTransactions function, update these lines:
-document.getElementById('totalTransactions').textContent = metrics.totalCount;
-document.getElementById('successRate').textContent = `${metrics.successRate.toFixed(1)}%`;
-document.getElementById('avgTotalTime').textContent = formatDuration(metrics.avgResponseTime);
-document.getElementById('avgNetworkTime').textContent = formatDuration(metrics.avgNetworkTime);
-document.getElementById('avgTotalTimeDetail').textContent = formatDuration(metrics.avgResponseTime);
-
         
         // Update statistics
         document.getElementById('totalTransactions').textContent = metrics.totalCount;
         document.getElementById('successRate').textContent = `${metrics.successRate.toFixed(1)}%`;
-        //document.getElementById('avgResponseTime').textContent = formatDuration(metrics.avgResponseTime);
+        document.getElementById('avgTotalTime').textContent = formatDuration(metrics.avgResponseTime);
         document.getElementById('avgNetworkTime').textContent = formatDuration(metrics.avgNetworkTime);
-        document.getElementById('avgProcessingTime').textContent = formatDuration(metrics.avgProcessingTime);
-        //document.getElementById('avgThroughput').textContent = formatThroughput(metrics.avgThroughput);
-        //document.getElementById('avgDataSize').textContent = formatBytes(metrics.avgDataSize);
+        document.getElementById('avgTotalTimeDetail').textContent = formatDuration(metrics.avgResponseTime);
 
         // Update transaction list
         const transactionList = document.getElementById('transactionList');
@@ -127,10 +100,6 @@ document.getElementById('avgTotalTimeDetail').textContent = formatDuration(metri
                             <div class="timing-detail-value">${formatDuration(transaction.responseTime)}</div>
                         </div>
                     </div>
-                    <div class="performance-details">
-                        <p><strong>Data Size:</strong> ${formatBytes(transaction.dataSize)}</p>
-                        <p><strong>Throughput:</strong> ${formatThroughput(transaction.throughput)}</p>
-                    </div>
                 `;
                 transactionList.appendChild(row);
             });
@@ -146,9 +115,9 @@ async function clearAllTransactions() {
     if (!confirm('Are you sure you want to delete all transactions?')) return;
     
     try {
-const response = await fetch('https://paiement-simulation.onrender.com/transactions', {
-    method: 'DELETE'
-});
+        const response = await fetch('https://paiement-simulation.onrender.com/transactions', {
+            method: 'DELETE'
+        });
         
         if (response.ok) {
             loadTransactions();
