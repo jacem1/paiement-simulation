@@ -10,14 +10,39 @@ function startPolling() {
 }
 
 function calculateMetrics(transactions) {
+    console.log('Raw transactions received:', JSON.stringify(transactions, null, 2)); // Debug log
+
+    if (!Array.isArray(transactions)) {
+        console.error('Transactions is not an array:', transactions);
+        return {
+            totalCount: 0,
+            successRate: 0,
+            avgResponseTime: 0,
+            avgNetworkTime: 0,
+            avgProcessingTime: 0,
+            transactions: []
+        };
+    }
+
     const timeWindow = document.getElementById('timeWindow').value;
     const now = Date.now();
     const cutoffTime = timeWindow === 'all' ? 0 : 
         now - (parseInt(timeWindow) * 60 * 1000);
 
-    const filteredTransactions = transactions.filter(t => 
-        new Date(t.timestamp).getTime() > cutoffTime
-    );
+    console.log('Filtering transactions after:', new Date(cutoffTime).toISOString());
+
+    const filteredTransactions = transactions.filter(t => {
+        const timestamp = new Date(t.timestamp).getTime();
+        const include = timestamp > cutoffTime;
+        console.log('Transaction:', {
+            id: t.id,
+            timestamp: t.timestamp,
+            included: include
+        });
+        return include;
+    });
+
+    console.log('Filtered transactions:', filteredTransactions.length);
 
     if (filteredTransactions.length === 0) {
         return {
@@ -37,7 +62,7 @@ function calculateMetrics(transactions) {
     const avgNetworkTime = filteredTransactions.reduce((sum, t) => sum + (t.networkTime || 0), 0) / filteredTransactions.length;
     const avgProcessingTime = filteredTransactions.reduce((sum, t) => sum + (t.serverProcessingTime || 0), 0) / filteredTransactions.length;
 
-    return {
+    const metrics = {
         totalCount: filteredTransactions.length,
         successRate: (successful.length / filteredTransactions.length) * 100,
         avgResponseTime,
@@ -45,6 +70,9 @@ function calculateMetrics(transactions) {
         avgProcessingTime,
         transactions: filteredTransactions
     };
+
+    console.log('Calculated metrics:', metrics);
+    return metrics;
 }
 
 function formatDuration(ms) {
@@ -53,24 +81,39 @@ function formatDuration(ms) {
 
 async function loadTransactions() {
     try {
-        // Add timestamp to prevent caching
+        console.log('Fetching transactions...');
         const timestamp = new Date().getTime();
-        const response = await fetch(`https://paiement-simulation.onrender.com/transactions.json?t=${timestamp}`, {
+        const url = `https://paiement-simulation.onrender.com/transactions.json?t=${timestamp}`;
+        console.log('Fetch URL:', url);
+
+        const response = await fetch(url, {
             headers: {
                 'Cache-Control': 'no-cache',
                 'Pragma': 'no-cache'
             }
         });
         
+        console.log('Response status:', response.status);
+        console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
-        const transactions = await response.json();
-        console.log('Loaded transactions:', transactions); // Debug log
+        const text = await response.text();
+        console.log('Raw response text:', text);
+
+        let transactions;
+        try {
+            transactions = JSON.parse(text);
+        } catch (e) {
+            console.error('Failed to parse JSON:', e);
+            throw new Error('Invalid JSON response');
+        }
+
+        console.log('Parsed transactions:', transactions);
         
         const metrics = calculateMetrics(transactions);
-        console.log('Calculated metrics:', metrics); // Debug log
         
         // Update statistics
         document.getElementById('totalTransactions').textContent = metrics.totalCount;
@@ -90,6 +133,7 @@ async function loadTransactions() {
 
         metrics.transactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
             .forEach(transaction => {
+                console.log('Rendering transaction:', transaction);
                 const row = document.createElement('div');
                 row.className = 'transaction';
                 row.innerHTML = `
@@ -123,7 +167,7 @@ async function loadTransactions() {
     } catch (error) {
         console.error('Error loading transactions:', error);
         document.getElementById('transactionList').innerHTML = 
-            '<div class="error">Error loading transactions. Please refresh the page.</div>';
+            `<div class="error">Error loading transactions: ${error.message}</div>`;
     }
 }
 
