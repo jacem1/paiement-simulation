@@ -46,8 +46,6 @@ async function saveTransactions() {
 loadTransactions();
 
 // Simulate payment processing endpoint
-// In server.js, modify the simulate-payment endpoint:
-
 app.post('/simulate-payment', async (req, res) => {
     const startTime = process.hrtime();
     console.log('Received payment request:', JSON.stringify(req.body, null, 2));
@@ -64,6 +62,7 @@ app.post('/simulate-payment', async (req, res) => {
                 ...req.body,
                 timestamp: new Date().toISOString(),
                 id: Date.now().toString(),
+                success: true,  // Set success to true for all transactions
                 responseTime: totalTimeMs,           // Total round trip time
                 serverProcessingTime: PROCESSING_TIME, // Fixed processing time
                 networkTime: networkTimeMs,          // Network latency
@@ -71,30 +70,25 @@ app.post('/simulate-payment', async (req, res) => {
                 throughput: (JSON.stringify(req.body).length / networkTimeMs) * 1000 // Bytes per second
             };
             
-            // Simulate server processing
-            const success = Math.random() > 0.1; // 90% success rate
+            transactions.push(transaction);
+            await saveTransactions();
             
-            if (success) {
-                transactions.push(transaction);
-                await saveTransactions();
-                
-                console.log('Transaction metrics:', {
-                    totalTime: totalTimeMs.toFixed(2) + 'ms',
-                    processingTime: PROCESSING_TIME + 'ms',
-                    networkTime: networkTimeMs.toFixed(2) + 'ms',
-                    dataSize: transaction.dataSize + ' bytes',
-                    throughput: transaction.throughput.toFixed(2) + ' B/s'
-                });
-            }
+            console.log('Transaction metrics:', {
+                totalTime: totalTimeMs.toFixed(2) + 'ms',
+                processingTime: PROCESSING_TIME + 'ms',
+                networkTime: networkTimeMs.toFixed(2) + 'ms',
+                dataSize: transaction.dataSize + ' bytes',
+                throughput: transaction.throughput.toFixed(2) + ' B/s'
+            });
             
             res.json({
-                success,
+                success: true,
                 responseTime: totalTimeMs,
                 serverProcessingTime: PROCESSING_TIME,
                 networkTime: networkTimeMs,
                 dataSize: transaction.dataSize,
                 throughput: transaction.throughput,
-                message: success ? 'Transaction successful' : 'Transaction failed',
+                message: 'Transaction successful',
                 transactionId: transaction.id
             });
         } catch (error) {
@@ -108,23 +102,16 @@ app.post('/simulate-payment', async (req, res) => {
     }, PROCESSING_TIME);
 });
 
-// Get all transactions
+// Get all transactions - Make sure CORS is enabled for this endpoint
 app.get('/transactions', (req, res) => {
-    console.log('Sending transactions:', transactions.length);
+    console.log('GET /transactions - Sending transactions:', transactions.length);
+    res.header('Access-Control-Allow-Origin', '*');  // Enable CORS specifically for this endpoint
+    res.header('Access-Control-Allow-Methods', 'GET');
+    res.header('Access-Control-Allow-Headers', 'Content-Type');
     res.json(transactions);
 });
 
-// Get transaction by ID
-app.get('/transactions/:id', (req, res) => {
-    const transaction = transactions.find(t => t.id === req.params.id);
-    if (transaction) {
-        res.json(transaction);
-    } else {
-        res.status(404).json({ message: 'Transaction not found' });
-    }
-});
-
-// Clear all transactions (for testing)
+// Clear all transactions
 app.delete('/transactions', async (req, res) => {
     try {
         transactions = [];
@@ -134,6 +121,9 @@ app.delete('/transactions', async (req, res) => {
         res.status(500).json({ message: 'Error clearing transactions', error: error.message });
     }
 });
+
+// Serve static files
+app.use(express.static(path.join(__dirname)));
 
 // Serve admin dashboard
 app.get('/admin', (req, res) => {
