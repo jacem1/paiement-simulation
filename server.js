@@ -11,108 +11,123 @@ app.use(express.json());
 
 // Store transactions in memory and file
 let transactions = [];
-const TRANSACTIONS_FILE = 'transactions.json'; // Simplified path
+const TRANSACTIONS_FILE = 'transactions.json';
 
 // Load existing transactions on startup
 async function loadTransactions() {
     try {
-        const data = await fs.readFile(TRANSACTIONS_FILE, 'utf8');
-        transactions = JSON.parse(data);
-        console.log('Loaded transactions:', transactions.length);
-    } catch (error) {
-        if (error.code === 'ENOENT') {
-            // File doesn't exist, create it
-            await fs.writeFile(TRANSACTIONS_FILE, '[]');
-            console.log('Created new transactions file');
+        if (await fs.access(TRANSACTIONS_FILE).catch(() => false)) {
+            const data = await fs.readFile(TRANSACTIONS_FILE, 'utf8');
+            transactions = JSON.parse(data);
         } else {
-            console.error('Error loading transactions:', error);
+            await fs.writeFile(TRANSACTIONS_FILE, '[]');
         }
+        console.log(`Loaded ${transactions.length} transactions`);
+    } catch (error) {
+        console.error('Error loading transactions:', error);
+        transactions = [];
+        await fs.writeFile(TRANSACTIONS_FILE, '[]').catch(console.error);
     }
 }
 
 // Save transactions to file
 async function saveTransactions() {
     try {
-        await fs.writeFile(TRANSACTIONS_FILE, JSON.stringify(transactions, null, 2));
-        console.log('Saved transactions:', transactions.length);
-        console.log('Latest transaction:', transactions[transactions.length - 1]);
+        const data = JSON.stringify(transactions, null, 2);
+        await fs.writeFile(TRANSACTIONS_FILE, data);
+        console.log(`Saved ${transactions.length} transactions`);
+        return true;
     } catch (error) {
         console.error('Error saving transactions:', error);
+        return false;
     }
 }
 
-// Load transactions on startup
-loadTransactions();
+// Initialize
+loadTransactions().catch(console.error);
 
-// Serve static files including transactions.json
+// Serve static files
 app.use(express.static('.'));
 
-// Simulate payment processing endpoint
+// Get transactions
+app.get('/transactions.json', (req, res) => {
+    res.json(transactions);
+});
+
+// Simulate payment endpoint
 app.post('/simulate-payment', async (req, res) => {
+    console.log('Received payment:', req.body);
+    
     const startTime = process.hrtime();
-    console.log('Received payment request:', JSON.stringify(req.body, null, 2));
-    
-    const PROCESSING_TIME = 300; // Fixed processing time in ms
-    
-    setTimeout(async () => {
-        try {
-            const endTime = process.hrtime(startTime);
-            const totalTimeMs = (endTime[0] * 1000 + endTime[1] / 1000000);
-            const networkTimeMs = totalTimeMs - PROCESSING_TIME;
+    const PROCESSING_TIME = 300;
 
-            const transaction = {
-                ...req.body,
-                timestamp: new Date().toISOString(),
-                id: Date.now().toString(),
-                success: true,
-                responseTime: totalTimeMs,
-                serverProcessingTime: PROCESSING_TIME,
-                networkTime: networkTimeMs,
-                dataSize: JSON.stringify(req.body).length,
-                throughput: (JSON.stringify(req.body).length / networkTimeMs) * 1000
-            };
-            
-            transactions.push(transaction);
-            await saveTransactions(); // Save immediately after adding
-            
-            res.json({
-                success: true,
-                responseTime: totalTimeMs,
-                serverProcessingTime: PROCESSING_TIME,
-                networkTime: networkTimeMs,
-                dataSize: transaction.dataSize,
-                throughput: transaction.throughput,
-                message: 'Transaction successful',
-                transactionId: transaction.id
-            });
-        } catch (error) {
-            console.error('Error processing transaction:', error);
-            res.status(500).json({
-                success: false,
-                message: 'Server error processing transaction',
-                error: error.message
-            });
+    try {
+        const transaction = {
+            ...req.body,
+            timestamp: new Date().toISOString(),
+            id: Date.now().toString(),
+            success: true
+        };
+
+        // Add timing info after processing
+        const endTime = process.hrtime(startTime);
+        const totalTimeMs = (endTime[0] * 1000 + endTime[1] / 1000000);
+        
+        transaction.responseTime = totalTimeMs;
+        transaction.serverProcessingTime = PROCESSING_TIME;
+        transaction.networkTime = totalTimeMs - PROCESSING_TIME;
+        transaction.dataSize = JSON.stringify(req.body).length;
+        transaction.throughput = (transaction.dataSize / transaction.networkTime) * 1000;
+
+        // Save transaction
+        transactions.push(transaction);
+        const saved = await saveTransactions();
+
+        if (!saved) {
+            throw new Error('Failed to save transaction');
         }
-    }, PROCESSING_TIME);
+
+        // Send response
+        res.json({
+            success: true,
+            responseTime: totalTimeMs,
+            serverProcessingTime: PROCESSING_TIME,
+            networkTime: transaction.networkTime,
+            dataSize: transaction.dataSize,
+            throughput: transaction.throughput,
+            message: 'Transaction successful',
+            transactionId: transaction.id
+        });
+
+        console.log('Transaction processed:', transaction.id);
+
+    } catch (error) {
+        console.error('Transaction error:', error);
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
 });
 
-// Serve admin dashboard
-app.get('/admin', (req, res) => {
-    res.sendFile(path.join(__dirname, 'admin.html'));
-});
-
-// Clear all transactions
+// Clear transactions
 app.delete('/transactions.json', async (req, res) => {
     try {
         transactions = [];
         await saveTransactions();
-        res.json({ message: 'All transactions cleared' });
+        res.json({ success: true, message: 'All transactions cleared' });
     } catch (error) {
-        res.status(500).json({ message: 'Error clearing transactions', error: error.message });
+        res.status(500).json({ success: false, message: error.message });
     }
 });
 
+// Error handler
+app.use((err, req, res, next) => {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Server error' });
+});
+
+// Start server
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
-    console.log(`Admin dashboard: http://localhost:${port}/admin`);
 });
