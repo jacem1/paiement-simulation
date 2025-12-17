@@ -53,13 +53,24 @@ function formatDuration(ms) {
 
 async function loadTransactions() {
     try {
-        const response = await fetch('https://paiement-simulation.onrender.com/transactions.json');
+        // Add timestamp to prevent caching
+        const timestamp = new Date().getTime();
+        const response = await fetch(`https://paiement-simulation.onrender.com/transactions.json?t=${timestamp}`, {
+            headers: {
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache'
+            }
+        });
+        
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
+        
         const transactions = await response.json();
+        console.log('Loaded transactions:', transactions); // Debug log
         
         const metrics = calculateMetrics(transactions);
+        console.log('Calculated metrics:', metrics); // Debug log
         
         // Update statistics
         document.getElementById('totalTransactions').textContent = metrics.totalCount;
@@ -71,6 +82,11 @@ async function loadTransactions() {
         // Update transaction list
         const transactionList = document.getElementById('transactionList');
         transactionList.innerHTML = '';
+
+        if (metrics.transactions.length === 0) {
+            transactionList.innerHTML = '<div class="error">No transactions found</div>';
+            return;
+        }
 
         metrics.transactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
             .forEach(transaction => {
@@ -116,7 +132,11 @@ async function clearAllTransactions() {
     
     try {
         const response = await fetch('https://paiement-simulation.onrender.com/transactions.json', {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: {
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache'
+            }
         });
         
         if (response.ok) {
