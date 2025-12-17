@@ -72,7 +72,8 @@ function formatThroughput(bytesPerSec) {
 
 async function loadTransactions() {
     try {
-        const response = await fetch('/transactions');
+        const response = await fetch('https://payment-simulation-gbyy.onrender.com/transactions');
+
         const transactions = await response.json();
         
         const metrics = calculateMetrics(transactions);
@@ -137,9 +138,9 @@ async function clearAllTransactions() {
     if (!confirm('Are you sure you want to delete all transactions?')) return;
     
     try {
-        const response = await fetch('/transactions', {
-            method: 'DELETE'
-        });
+     const response = await fetch('https://payment-simulation-gbyy.onrender.com/transactions', {
+    method: 'DELETE'
+});
         
         if (response.ok) {
             loadTransactions();
